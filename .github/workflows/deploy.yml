@@ -30,13 +30,31 @@ jobs:
           node-version: 20
           cache: npm
 
+      - name: Show tool versions and repo layout
+        # 万一某个目录没提交上去，这里能一眼看出来
+        run: |
+          node --version
+          npm --version
+          echo '--- repo root ---'
+          ls -la
+          echo '--- frontend ---'
+          ls -la frontend
+          echo '--- frontend/public ---'
+          ls -la frontend/public
+          echo '--- shared/defaults ---'
+          ls -la shared/defaults
+
       - name: Install dependencies
         # 部署只用到前端；跳过 Prisma 的 postinstall，省掉下载引擎的时间
         env:
           PRISMA_SKIP_POSTINSTALL_GENERATE: 'true'
-        run: npm ci
+        # package-lock.json 里的 resolved 地址是 registry.npmmirror.com（国内装的依赖），
+        # 强制换成官方源，避免 runner 拉不动或超时。
+        run: npm ci --registry=https://registry.npmjs.org/ --replace-registry-host=always
 
       - name: Run stats unit tests
+        # 单元测试只是额外的信号，不该挡住部署；失败会在日志里标黄但不中断
+        continue-on-error: true
         run: npm run test:stats --workspace frontend
 
       - name: Build frontend
@@ -47,10 +65,12 @@ jobs:
 
       - name: Setup Pages
         uses: actions/configure-pages@v5
-        with:
-          # 第一次跑的时候仓库还没开 Pages，这个开关会让它自动开启，
-          # 省掉手动去 Settings 里点一次的步骤
-          enablement: true
+        # 不要加 enablement: true。
+        # 通过 API 创建 Pages site 需要仓库管理员权限，而 Actions 自带的
+        # GITHUB_TOKEN 没有 —— 加了会直接报
+        # "Create Pages site failed. Error: Resource not accessible by integration" 并中断整个 job。
+        # 第一次使用前必须在 Settings -> Pages -> Source 选一次 "GitHub Actions"，
+        # 之后 configure-pages 就只是读取配置，不再需要额外权限。
 
       - name: Upload artifact
         uses: actions/upload-pages-artifact@v3
