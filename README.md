@@ -579,7 +579,7 @@ git push -u origin main
 > **Re-run all jobs** 重跑一次即可（不用重新提交代码）。
 
 **4. 等 Actions 变绿（大约 1 分钟）。** 成功之后站点就在
-`https://<你的用户名>.github.io/workoutapp/`。
+<https://conqsan.github.io/workoutapp/>。
 
 ### 之后每次更新
 

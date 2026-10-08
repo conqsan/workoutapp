@@ -83,5 +83,6 @@ HTTP 实现 —— 接口早就留好了，UI 不需要改。
 
 ## 待定
 
-- GitHub 仓库名（决定 GitHub Pages 的子路径 base，例如仓库名 `fitlog` → `/fitlog/`）
+- ~~GitHub 仓库名~~ → 已确定：账号 `conqsan`，仓库 `workoutapp`，
+  站点为 <https://conqsan.github.io/workoutapp/>，构建时 `VITE_BASE_PATH=/workoutapp/`
 - 是否以及何时补上实时同步
