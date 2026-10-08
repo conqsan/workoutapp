@@ -14,6 +14,7 @@
 import { readFileSync } from 'node:fs';
 import path from 'node:path';
 import { PrismaClient } from '@prisma/client';
+import { serializeUnits } from '../src/utils/supplementUnits';
 
 const prisma = new PrismaClient();
 
@@ -33,6 +34,8 @@ interface ExerciseSeed {
 interface SupplementSeed {
   name: string;
   unit: string;
+  /** 可选单位（第一项是默认值），例如蛋白粉 ['g', '勺'] */
+  units?: string[];
 }
 
 function loadDefaults<T>(fileName: string): T {
@@ -91,17 +94,30 @@ async function seedExercises(muscleIdByName: Map<string, number>): Promise<void>
 async function seedSupplements(): Promise<void> {
   const supplements = loadDefaults<SupplementSeed[]>('supplements.json');
   const before = await prisma.supplement.count();
+  let backfilled = 0;
 
   for (const supplement of supplements) {
-    await prisma.supplement.upsert({
-      where: { name: supplement.name },
-      update: {},
-      create: { name: supplement.name, unit: supplement.unit, isDefault: true },
-    });
+    const units = serializeUnits(supplement.units, supplement.unit);
+    const existing = await prisma.supplement.findUnique({ where: { name: supplement.name } });
+
+    if (!existing) {
+      await prisma.supplement.create({
+        data: { name: supplement.name, unit: supplement.unit, units, isDefault: true },
+      });
+      continue;
+    }
+
+    // 只补「空的 units」：从老版本升级上来的这列是默认值 '[]'，
+    // 而用户自己改过的单位列表不动 —— 和前端 syncDefaults 一个原则：只补不覆盖。
+    if (existing.units === '' || existing.units === '[]') {
+      await prisma.supplement.update({ where: { id: existing.id }, data: { units } });
+      backfilled += 1;
+    }
   }
 
   const after = await prisma.supplement.count();
-  console.log(`  补剂：新增 ${after - before} 个，共 ${after} 个`);
+  const suffix = backfilled > 0 ? `，补齐 ${backfilled} 个的可选单位` : '';
+  console.log(`  补剂：新增 ${after - before} 个，共 ${after} 个${suffix}`);
 }
 
 /**

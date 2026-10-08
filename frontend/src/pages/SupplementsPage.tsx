@@ -110,6 +110,9 @@ export function SupplementsPage(): ReactElement {
   };
 
   const isToday = date === todayKey();
+  const selectedSupplement = supplements.find((item) => item.id === supplementId) ?? null;
+  /** 这个补剂允许的单位（第一项是默认），例如蛋白粉 → g / 勺 */
+  const unitOptions = selectedSupplement?.units ?? [];
 
   if (loading) {
     return <div className="h-40 animate-pulse rounded-2xl bg-slate-200/70" />;
@@ -127,7 +130,7 @@ export function SupplementsPage(): ReactElement {
       ) : null}
 
       <section className="card space-y-3">
-        <div className="flex items-center justify-between gap-2">
+        <div className="flex flex-wrap items-center justify-between gap-2">
           <h2 className="text-base font-semibold text-slate-900">记录补剂</h2>
           <div className="flex items-center gap-2">
             {isToday ? null : (
@@ -144,7 +147,7 @@ export function SupplementsPage(): ReactElement {
               value={date}
               onChange={(event) => setDate(event.target.value || todayKey())}
               data-testid="record-date"
-              className="h-9 rounded-lg bg-slate-100 px-2 text-sm text-slate-700 ring-1 ring-inset ring-slate-200"
+              className="h-9 min-w-0 max-w-full rounded-lg bg-slate-100 px-2 text-sm text-slate-700 ring-1 ring-inset ring-slate-200"
             />
           </div>
         </div>
@@ -233,6 +236,29 @@ export function SupplementsPage(): ReactElement {
             />
           </label>
         </div>
+
+        {unitOptions.length > 1 ? (
+          <div className="flex flex-wrap items-center gap-2">
+            <span className="text-[11px] font-medium text-slate-500">可选单位</span>
+            <div className="flex flex-wrap gap-1.5" data-testid="unit-options">
+              {unitOptions.map((option) => (
+                <button
+                  key={option}
+                  type="button"
+                  data-testid="unit-option"
+                  data-unit={option}
+                  onClick={() => setUnit(option)}
+                  className={cn(
+                    'min-h-[32px] rounded-full px-3 text-xs font-medium transition',
+                    unit === option ? 'bg-brand-600 text-white' : 'bg-slate-100 text-slate-600',
+                  )}
+                >
+                  {option}
+                </button>
+              ))}
+            </div>
+          </div>
+        ) : null}
 
         <div>
           <span className="mb-1 block text-[11px] font-medium text-slate-500">时间</span>

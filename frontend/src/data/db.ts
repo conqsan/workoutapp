@@ -6,7 +6,7 @@
  */
 
 const DB_NAME = 'fitlog';
-const DB_VERSION = 3;
+const DB_VERSION = 4;
 
 export const Store = {
   meta: 'meta',
@@ -91,6 +91,22 @@ export function openDatabase(): Promise<IDBDatabase> {
         const store = db.createObjectStore(Store.supplementRecords, { keyPath: 'id' });
         store.createIndex('date', 'date');
         store.createIndex('supplementId', 'supplementId');
+      }
+
+      // v3 -> v4：补剂增加「可选单位」（例如蛋白粉支持 g / 勺）。
+      // 老数据先用原来的单位兜底，shared/defaults 里的新单位由 syncDefaults 补进来。
+      if (previousVersion > 0 && previousVersion < 4 && upgradeTx) {
+        const supplementsStore = upgradeTx.objectStore(Store.supplements);
+        const cursorRequest = supplementsStore.openCursor();
+        cursorRequest.onsuccess = () => {
+          const cursor = cursorRequest.result;
+          if (!cursor) return;
+          const row = cursor.value as { unit?: string; units?: unknown };
+          if (!Array.isArray(row.units) || row.units.length === 0) {
+            cursor.update({ ...row, units: [typeof row.unit === 'string' ? row.unit : 'g'] });
+          }
+          cursor.continue();
+        };
       }
     };
 

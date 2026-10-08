@@ -41,11 +41,25 @@ export const DEFAULT_EXERCISES: readonly Exercise[] = exercisesJson.map((exercis
   };
 });
 
+/**
+ * 补剂允许的单位：`units` 是 v4 才加的字段，老数据 / 老备份没有它，按原来的单位兜底。
+ */
+export function normalizeUnits(supplement: {
+  unit: string;
+  units?: readonly string[] | undefined;
+}): string[] {
+  const units = (supplement.units ?? [])
+    .map((unit) => unit.trim())
+    .filter((unit) => unit.length > 0);
+  return units.length > 0 ? units : [supplement.unit];
+}
+
 export const DEFAULT_SUPPLEMENTS: readonly Supplement[] = supplementsJson.map(
   (supplement, index) => ({
     id: `sup${index + 1}`,
     name: supplement.name,
     unit: supplement.unit,
+    units: normalizeUnits(supplement),
     isDefault: true,
     sortOrder: index,
   }),

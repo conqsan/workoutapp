@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { initDataLayer, repository } from '@/data';
 import type { SupplementRecordWithSupplement, WorkoutDetail, WorkoutSummary } from '@/data';
 
@@ -6,6 +6,9 @@ export interface UseHistoryResult {
   loading: boolean;
   summaries: WorkoutSummary[];
   error: string | null;
+  removing: boolean;
+  /** 删掉一次训练（连它的动作与组一起），删完列表就地刷新 */
+  remove: (id: string) => Promise<void>;
 }
 
 /** 历史列表：所有训练的摘要，按日期倒序 */
@@ -13,6 +16,7 @@ export function useHistory(): UseHistoryResult {
   const [loading, setLoading] = useState(true);
   const [summaries, setSummaries] = useState<WorkoutSummary[]>([]);
   const [error, setError] = useState<string | null>(null);
+  const [removing, setRemoving] = useState(false);
 
   useEffect(() => {
     let cancelled = false;
@@ -35,7 +39,20 @@ export function useHistory(): UseHistoryResult {
     };
   }, []);
 
-  return { loading, summaries, error };
+  const remove = useCallback(async (id: string): Promise<void> => {
+    setRemoving(true);
+    setError(null);
+    try {
+      await repository.deleteWorkout(id);
+      setSummaries(await repository.listWorkoutSummaries());
+    } catch (caught) {
+      setError(caught instanceof Error ? caught.message : '删除失败，请重试。');
+    } finally {
+      setRemoving(false);
+    }
+  }, []);
+
+  return { loading, summaries, error, removing, remove };
 }
 
 export interface UseHistoryDetailResult {
@@ -43,6 +60,9 @@ export interface UseHistoryDetailResult {
   workout: WorkoutDetail | null;
   supplements: SupplementRecordWithSupplement[];
   error: string | null;
+  removing: boolean;
+  /** 删掉这次训练；成功返回 true（页面据此返回列表），失败返回 false 并给出提示 */
+  remove: () => Promise<boolean>;
 }
 
 /** 某一次训练的完整明细 + 同一天的补剂记录 */
@@ -51,6 +71,7 @@ export function useHistoryDetail(id: string | undefined): UseHistoryDetailResult
   const [workout, setWorkout] = useState<WorkoutDetail | null>(null);
   const [supplements, setSupplements] = useState<SupplementRecordWithSupplement[]>([]);
   const [error, setError] = useState<string | null>(null);
+  const [removing, setRemoving] = useState(false);
 
   useEffect(() => {
     if (id === undefined || id === '') {
@@ -89,5 +110,21 @@ export function useHistoryDetail(id: string | undefined): UseHistoryDetailResult
     };
   }, [id]);
 
-  return { loading, workout, supplements, error };
+  const remove = useCallback(async (): Promise<boolean> => {
+    if (id === undefined || id === '') return false;
+
+    setRemoving(true);
+    setError(null);
+    try {
+      await repository.deleteWorkout(id);
+      return true;
+    } catch (caught) {
+      setError(caught instanceof Error ? caught.message : '删除失败，请重试。');
+      return false;
+    } finally {
+      setRemoving(false);
+    }
+  }, [id]);
+
+  return { loading, workout, supplements, error, removing, remove };
 }

@@ -17,6 +17,7 @@ export function findByName(name: string): Promise<{ id: number } | null> {
 export function create(data: {
   name: string;
   unit: string;
+  units: string;
   isDefault: boolean;
 }): Promise<Supplement> {
   return getPrisma().supplement.create({ data });

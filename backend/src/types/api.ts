@@ -39,7 +39,10 @@ export interface ExerciseDto {
 export interface SupplementDto {
   id: number;
   name: string;
+  /** 默认单位 */
   unit: string;
+  /** 允许记录时使用的单位，第一项是默认值（例如蛋白粉 ['g', '勺']） */
+  units: string[];
   isDefault: boolean;
   createdAt: string;
   updatedAt: string;

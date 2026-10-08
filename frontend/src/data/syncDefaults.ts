@@ -2,7 +2,7 @@ import exercisesJson from '@shared/defaults/exercises.json';
 import musclesJson from '@shared/defaults/muscles.json';
 import supplementsJson from '@shared/defaults/supplements.json';
 import { getAll, get, put, remove, Store, type MetaRow } from './db';
-import { ensureDefaultsSeeded } from './defaults';
+import { ensureDefaultsSeeded, normalizeUnits } from './defaults';
 import { createId } from './ids';
 import type { Exercise, Muscle, Supplement, WorkoutExercise } from './types';
 
@@ -35,6 +35,7 @@ interface ExerciseSeed {
 interface SupplementSeed {
   name: string;
   unit: string;
+  units?: readonly string[];
 }
 
 const muscleSeeds: readonly MuscleSeed[] = musclesJson;
@@ -53,7 +54,20 @@ const defaultExerciseKeys = new Set(
 );
 const SYNC_VERSION_KEY = 'defaults-sync-version';
 /** 改动 shared/defaults 里「增删」时把这个数字 +1，老用户下次打开才会同步到 */
-const SYNC_VERSION = 2;
+const SYNC_VERSION = 3;
+
+/**
+ * 合并可选单位：seed 里的是「官方顺序」，本地多出来的（用户自己加的）追加在后面。
+ * 只加不减 —— 不把用户手里的单位列表改小。
+ */
+function mergeUnits(local: readonly string[], seed: readonly string[]): string[] {
+  const merged: string[] = [];
+  for (const unit of [...seed, ...local]) {
+    const trimmed = unit.trim();
+    if (trimmed.length > 0 && !merged.includes(trimmed)) merged.push(trimmed);
+  }
+  return merged;
+}
 
 /** 把 JSON 里新增的默认项补进本机库 */
 async function mergeMissingDefaults(): Promise<void> {
@@ -114,11 +128,22 @@ async function mergeMissingDefaults(): Promise<void> {
 
   // ---- 补剂：按名字匹配
   for (const [index, seed] of supplementSeeds.entries()) {
-    if (supplements.some((item) => item.name === seed.name)) continue;
+    const existing = supplements.find((item) => item.name === seed.name);
+    if (existing) {
+      // 已有的补剂只补「可选单位」（例如蛋白粉新增了「勺」），单位列表不会变短
+      const merged = mergeUnits(normalizeUnits(existing), normalizeUnits(seed));
+      const current = normalizeUnits(existing);
+      if (merged.length !== current.length || merged.some((unit, at) => unit !== current[at])) {
+        await put(Store.supplements, { ...existing, units: merged });
+      }
+      continue;
+    }
+
     await put(Store.supplements, {
       id: createId('sup'),
       name: seed.name,
       unit: seed.unit,
+      units: normalizeUnits(seed),
       isDefault: true,
       sortOrder: index,
     } satisfies Supplement);

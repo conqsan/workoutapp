@@ -182,6 +182,15 @@ async function main(): Promise<void> {
     ),
     supplements.data,
   );
+  check(
+    '蛋白粉 / 增肌粉 提供了「勺」，肌酸只有 g',
+    (supplements.data ?? []).some((s) => s.name === '蛋白粉' && s.units?.includes('勺')) &&
+      (supplements.data ?? []).some((s) => s.name === '增肌粉' && s.units?.includes('勺')) &&
+      (supplements.data ?? []).some(
+        (s) => s.name === '肌酸' && s.units?.length === 1 && s.units[0] === 'g',
+      ),
+    supplements.data?.map((s) => `${s.name}:${(s.units ?? []).join('/')}`),
+  );
 
   section('[7] POST /api/exercises —— 创建自定义动作');
   const createExerciseRes = await app.inject({
@@ -277,7 +286,7 @@ async function main(): Promise<void> {
   const createSupplementRes = await app.inject({
     method: 'POST',
     url: '/api/supplements',
-    payload: { name: TEMP_SUPPLEMENT_NAME, unit: 'ml' },
+    payload: { name: TEMP_SUPPLEMENT_NAME, unit: 'ml', units: ['ml', '勺'] },
   });
   const createdSupplement = createSupplementRes.json<SuccessBody<SupplementDto>>();
   const createdSupplementId = createdSupplement.data?.id;
@@ -289,6 +298,18 @@ async function main(): Promise<void> {
     createdSupplement.data,
   );
   check('单位已保存', createdSupplement.data?.unit === 'ml', createdSupplement.data);
+  check(
+    '可选单位已保存（ml / 勺）',
+    createdSupplement.data?.units?.join('/') === 'ml/勺',
+    createdSupplement.data?.units,
+  );
+
+  const badUnitsRes = await app.inject({
+    method: 'POST',
+    url: '/api/supplements',
+    payload: { name: `${TEMP_SUPPLEMENT_NAME}-bad`, unit: 'g', units: [] },
+  });
+  check('可选单位为空数组 -> 422', badUnitsRes.statusCode === 422, badUnitsRes.statusCode);
 
   const duplicateSupplementRes = await app.inject({
     method: 'POST',
@@ -304,12 +325,13 @@ async function main(): Promise<void> {
   const updateSupplementRes = await app.inject({
     method: 'PUT',
     url: `/api/supplements/${createdSupplementId ?? 0}`,
-    payload: { unit: 'g' },
+    payload: { unit: 'g', units: ['g'] },
   });
   check(
     '修改补剂单位',
     updateSupplementRes.statusCode === 200 &&
-      updateSupplementRes.json<SuccessBody<SupplementDto>>().data?.unit === 'g',
+      updateSupplementRes.json<SuccessBody<SupplementDto>>().data?.unit === 'g' &&
+      updateSupplementRes.json<SuccessBody<SupplementDto>>().data?.units?.join('/') === 'g',
     updateSupplementRes.json(),
   );
 
@@ -829,6 +851,8 @@ async function main(): Promise<void> {
   const plan: Array<[typeof creatine, number, string, string]> = [
     [creatine, 5, 'g', '训练后'],
     [protein, 30, 'g', '训练后'],
+    // 「勺」是补剂的可选单位（蛋白粉 / 增肌粉），记录时要原样保存
+    [protein, 1, '勺', '训练后'],
     [massGainer, 100, 'g', '早餐'],
   ];
 
@@ -862,11 +886,16 @@ async function main(): Promise<void> {
     (record) => record.note === marker,
   );
 
-  check('按日期查询能取回这 3 条', todayRecords.length === 3, todayRecords.length);
+  check('按日期查询能取回这 4 条', todayRecords.length === 4, todayRecords.length);
   check(
-    '肌酸 5g / 蛋白粉 30g / 增肌粉 100g',
+    '肌酸 5g / 蛋白粉 30g / 蛋白粉 1勺 / 增肌粉 100g',
     JSON.stringify(todayRecords.map((r) => `${r.supplement.name} ${r.amount}${r.unit}`).sort()) ===
-      JSON.stringify(['肌酸 5g', '蛋白粉 30g', '增肌粉 100g'].sort()),
+      JSON.stringify(['肌酸 5g', '蛋白粉 30g', '蛋白粉 1勺', '增肌粉 100g'].sort()),
+    todayRecords.map((r) => `${r.supplement.name} ${r.amount}${r.unit}`),
+  );
+  check(
+    '按「勺」记录时单位原样保存',
+    todayRecords.some((r) => r.supplement.name === '蛋白粉' && r.amount === 1 && r.unit === '勺'),
     todayRecords.map((r) => `${r.supplement.name} ${r.amount}${r.unit}`),
   );
   check(

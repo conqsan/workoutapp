@@ -1,5 +1,5 @@
 [
-  { "name": "增肌粉", "unit": "g" },
-  { "name": "肌酸", "unit": "g" },
-  { "name": "蛋白粉", "unit": "g" }
+  { "name": "增肌粉", "unit": "g", "units": ["g", "勺"] },
+  { "name": "肌酸", "unit": "g", "units": ["g"] },
+  { "name": "蛋白粉", "unit": "g", "units": ["g", "勺"] }
 ]

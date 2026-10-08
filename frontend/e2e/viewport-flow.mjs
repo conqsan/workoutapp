@@ -107,6 +107,40 @@ async function measureNavClearance(page) {
   });
 }
 
+/**
+ * 量日期控件。
+ *
+ * 手机上 `input[type=date]` 有自己的内在宽度（中文 locale 下「2026/10/08」+ 日历图标），
+ * 一旦容器不允许收缩，它会直接顶出屏幕 —— 所以在每个宽度下都单独量一次：
+ * 盒子必须在视口内、内部内容不能溢出、并且允许收缩（min-width: 0）。
+ */
+async function measureDateInput(page, testId) {
+  return page.evaluate((id) => {
+    const element = document.querySelector(`[data-testid="${id}"]`);
+    if (!element) return null;
+    const rect = element.getBoundingClientRect();
+    const style = getComputedStyle(element);
+    return {
+      left: Math.round(rect.left),
+      right: Math.round(rect.right),
+      width: Math.round(rect.width),
+      viewport: window.innerWidth,
+      minWidth: style.minWidth,
+      scrollWidth: element.scrollWidth,
+      clientWidth: element.clientWidth,
+    };
+  }, testId);
+}
+
+function dateBoxFits(box) {
+  return (
+    box !== null &&
+    box.left >= -1 &&
+    box.right <= box.viewport + 1 &&
+    box.scrollWidth <= box.clientWidth + 1
+  );
+}
+
 async function main() {
   const { page, pageErrors, cleanup } = await launchBrowser({
     viewport: { width: 390, height: 844 },
@@ -179,6 +213,11 @@ async function main() {
             clearance,
           );
         }
+
+        if (target.path === '/supplements') {
+          const dateBox = await measureDateInput(page, 'record-date');
+          check('补剂：日期框没有横向超出屏幕', dateBoxFits(dateBox), dateBox);
+        }
       }
 
       // 训练页是关键：还要检查控件尺寸
@@ -196,6 +235,21 @@ async function main() {
           control.height !== null && control.height >= control.minHeight,
           control,
         );
+      }
+
+      const startDateBox = await measureDateInput(page, 'start-date');
+      check('训练页：日期框没有横向超出屏幕', dateBoxFits(startDateBox), startDateBox);
+      check(
+        '训练页：日期框允许收缩（min-width: 0）',
+        startDateBox?.minWidth === '0px',
+        startDateBox,
+      );
+
+      // 想逐个人眼确认布局就设 E2E_SCREENSHOT_VIEWPORT=<目录>
+      if (process.env.E2E_SCREENSHOT_VIEWPORT) {
+        await page.screenshot({
+          path: `${process.env.E2E_SCREENSHOT_VIEWPORT}/workout-start-${viewport.width}.png`,
+        });
       }
 
       await clickWhenReady(await page.$('[data-testid="start-workout"]'));

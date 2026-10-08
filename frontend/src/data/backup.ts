@@ -425,11 +425,28 @@ function validateSupplement(raw: unknown, path: string, issues: IssueList): Supp
   const unit = requireString(raw, 'unit', path, issues);
   const isDefault = requireBoolean(raw, 'isDefault', path, issues);
   const sortOrder = requireNumber(raw, 'sortOrder', path, issues);
+
+  // units 是 v4 才有的字段：老备份里没有，按 [unit] 兜底，不能因为缺字段就拒绝整个文件
+  const rawUnits = raw.units;
+  let units: string[] = [];
+  if (rawUnits !== undefined && rawUnits !== null) {
+    if (
+      !Array.isArray(rawUnits) ||
+      rawUnits.length === 0 ||
+      rawUnits.length > 10 ||
+      rawUnits.some((item) => typeof item !== 'string' || item.trim() === '')
+    ) {
+      issues.add(`${path}.units 必须是 1～10 个「非空字符串」组成的数组`);
+      return null;
+    }
+    units = rawUnits.map((item) => (item as string).trim());
+  }
+
   if (id === null || name === null || unit === null || isDefault === null || sortOrder === null) {
     return null;
   }
 
-  return { id, name, unit, isDefault, sortOrder };
+  return { id, name, unit, units: units.length > 0 ? units : [unit], isDefault, sortOrder };
 }
 
 function validateSupplementRecord(

@@ -11,6 +11,7 @@ import {
   type StoreName,
 } from './db';
 import { createId, todayKey } from './ids';
+import { normalizeUnits } from './defaults';
 import {
   APP_VERSION,
   BACKUP_FORMAT,
@@ -136,7 +137,10 @@ async function readBackupData(): Promise<BackupData> {
   return {
     muscles: muscles.slice().sort(compareMuscles),
     exercises: exercises.slice().sort((a, b) => a.sortOrder - b.sortOrder),
-    supplements: supplements.slice().sort((a, b) => a.sortOrder - b.sortOrder),
+    // units 是 v4 才有的字段：导出给老数据补上，备份文件里就统一带 units 了
+    supplements: supplements
+      .map((supplement) => ({ ...supplement, units: normalizeUnits(supplement) }))
+      .sort((a, b) => a.sortOrder - b.sortOrder),
     supplementRecords: supplementRecords
       .slice()
       .sort((a, b) => a.date.localeCompare(b.date) || a.createdAt.localeCompare(b.createdAt)),
@@ -185,6 +189,7 @@ async function toRecordView(row: SupplementRecord): Promise<SupplementRecordWith
   return {
     ...row,
     supplementName: supplement?.name ?? '已删除的补剂',
+    units: supplement ? normalizeUnits(supplement) : [row.unit],
     isDefault: supplement?.isDefault ?? false,
   };
 }
@@ -245,7 +250,9 @@ export function createLocalRepository(): FitLogRepository {
 
   async function listSupplements(): Promise<Supplement[]> {
     const supplements = await getAll<Supplement>(Store.supplements);
-    return supplements.sort((a, b) => a.sortOrder - b.sortOrder);
+    return supplements
+      .map((supplement) => ({ ...supplement, units: normalizeUnits(supplement) }))
+      .sort((a, b) => a.sortOrder - b.sortOrder);
   }
 
   async function createSupplement(input: CreateSupplementInput): Promise<Supplement> {
@@ -259,10 +266,12 @@ export function createLocalRepository(): FitLogRepository {
       throw new Error(`已经有叫「${name}」的补剂了。`);
     }
 
+    const unit = input.unit?.trim() || 'g';
     const supplement: Supplement = {
       id: createId('sup'),
       name,
-      unit: input.unit?.trim() || 'g',
+      unit,
+      units: normalizeUnits({ unit, units: input.units }),
       isDefault: false,
       sortOrder: 10_000 + (Date.now() % 10_000),
     };
@@ -297,6 +306,7 @@ export function createLocalRepository(): FitLogRepository {
       return {
         ...record,
         supplementName: supplement?.name ?? '已删除的补剂',
+        units: supplement ? normalizeUnits(supplement) : [record.unit],
         isDefault: supplement?.isDefault ?? false,
       };
     });

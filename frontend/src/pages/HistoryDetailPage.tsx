@@ -1,12 +1,20 @@
-import type { ReactElement } from 'react';
-import { Link, useParams } from 'react-router-dom';
+import { useState, type ReactElement } from 'react';
+import { Link, useNavigate, useParams } from 'react-router-dom';
 import { useHistoryDetail } from '@/hooks/useHistory';
 import { formatDateKeyLabel, formatVolume } from '@/utils/format';
 import { formatWeight } from '@/utils/weight';
 
 export function HistoryDetailPage(): ReactElement {
   const { id } = useParams<{ id: string }>();
-  const { loading, workout, supplements, error } = useHistoryDetail(id);
+  const navigate = useNavigate();
+  const { loading, workout, supplements, error, removing, remove } = useHistoryDetail(id);
+  /** 删除不可撤销，所以点一次只是展开确认 */
+  const [confirmDelete, setConfirmDelete] = useState(false);
+
+  const handleDelete = async (): Promise<void> => {
+    const deleted = await remove();
+    if (deleted) navigate('/history', { replace: true });
+  };
 
   if (loading) {
     return <div className="h-40 animate-pulse rounded-2xl bg-slate-200/70" />;
@@ -124,6 +132,49 @@ export function HistoryDetailPage(): ReactElement {
             </p>
           ))
         )}
+      </section>
+
+      <section className="space-y-2 pt-1">
+        {confirmDelete ? (
+          <div
+            className="flex flex-wrap items-center justify-between gap-2 rounded-xl bg-rose-50 px-3 py-2"
+            data-testid="confirm-delete-workout"
+          >
+            <span className="text-sm text-rose-700">删除这次训练？删掉就找不回来了。</span>
+            <div className="flex gap-2">
+              <button
+                type="button"
+                disabled={removing}
+                onClick={() => void handleDelete()}
+                data-testid="delete-workout-confirm"
+                className="min-h-[36px] rounded-lg bg-rose-600 px-3 text-xs font-semibold text-white disabled:opacity-50"
+              >
+                确认删除
+              </button>
+              <button
+                type="button"
+                onClick={() => setConfirmDelete(false)}
+                className="min-h-[36px] rounded-lg px-3 text-xs font-medium text-slate-600"
+              >
+                取消
+              </button>
+            </div>
+          </div>
+        ) : (
+          <button
+            type="button"
+            disabled={removing}
+            onClick={() => setConfirmDelete(true)}
+            data-testid="delete-workout"
+            className="min-h-[40px] w-full text-xs font-medium text-rose-500 disabled:opacity-40"
+          >
+            删除这次训练
+          </button>
+        )}
+
+        <p className="px-1 text-center text-[11px] text-slate-400">
+          只删这次训练（含它的动作与组），当天的补剂记录会保留。
+        </p>
       </section>
     </div>
   );

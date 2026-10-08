@@ -183,7 +183,82 @@ async function main() {
     check('首页显示肌酸', homeText.includes('肌酸'), homeText.slice(0, 200));
     check('首页不再显示蛋白粉', !homeText.includes('蛋白粉'), homeText.slice(0, 200));
 
-    section('[8] 页面没有 JS 报错');
+    section('[8] 可选单位：增肌粉 / 蛋白粉可以直接按「勺」记');
+    await page.goto(`${BASE_URL}/supplements`, { waitUntil: 'domcontentloaded' });
+    await waitFor(page, 'add-record', undefined, 15_000);
+
+    await clickWhenReady(await waitIn(page, 'supplement-chip', '增肌粉'));
+    const massGainerUnits = await page.$$eval('[data-testid="unit-option"]', (nodes) =>
+      nodes.map((node) => node.getAttribute('data-unit')),
+    );
+    check(
+      '增肌粉的可选单位有 g 和 勺',
+      massGainerUnits.includes('g') && massGainerUnits.includes('勺'),
+      massGainerUnits,
+    );
+
+    await clickWhenReady(await waitIn(page, 'supplement-chip', '肌酸'));
+    const creatineUnits = await page.$$eval('[data-testid="unit-option"]', (nodes) =>
+      nodes.map((node) => node.getAttribute('data-unit')),
+    );
+    check('肌酸没有「勺」（只有 g）', !creatineUnits.includes('勺'), creatineUnits);
+
+    await clickWhenReady(await waitIn(page, 'supplement-chip', '增肌粉'));
+    // 选中补剂会预填「最近一次的用量」：先等预填落定，再点单位，避免和预填打架
+    await waitUntil(
+      async () =>
+        (await page.$eval('[data-testid="record-amount-input"]', (el) => el.value)) !== '',
+    );
+    await clickWhenReady(await page.waitForSelector('[data-testid="unit-option"][data-unit="勺"]'));
+    await setInputValue(await waitFor(page, 'record-amount-input'), 1);
+    await clickWhenReady(await waitFor(page, 'add-record'));
+
+    check(
+      '记录显示「增肌粉 1勺」',
+      await waitUntil(async () =>
+        (await compactRowTexts(page)).some((text) => text.includes('增肌粉1勺')),
+      ),
+      await rowTexts(page),
+    );
+
+    section('[9] 老设备升级：没有 units 字段的补剂也要能补上「勺」');
+    // 模拟「从 v4 之前的库升级上来」：直接改写 IndexedDB，去掉 units 字段并回退同步版本号。
+    // 手机上就是这个路径 —— 数据早就存在本地了，不能要求用户重装。
+    await page.evaluate(
+      () =>
+        new Promise((resolve, reject) => {
+          const request = indexedDB.open('fitlog');
+          request.onerror = () => reject(request.error);
+          request.onsuccess = () => {
+            const db = request.result;
+            const tx = db.transaction(['supplements', 'meta'], 'readwrite');
+            const supplements = tx.objectStore('supplements');
+            const all = supplements.getAll();
+            all.onsuccess = () => {
+              for (const row of all.result) {
+                delete row.units;
+                supplements.put(row);
+              }
+              tx.objectStore('meta').put({ key: 'defaults-sync-version', value: '2' });
+            };
+            tx.oncomplete = () => {
+              db.close();
+              resolve(true);
+            };
+            tx.onerror = () => reject(tx.error);
+          };
+        }),
+    );
+
+    await page.reload({ waitUntil: 'domcontentloaded' });
+    await waitFor(page, 'add-record', undefined, 15_000);
+    await clickWhenReady(await waitIn(page, 'supplement-chip', '蛋白粉'));
+    const upgradedUnits = await page.$$eval('[data-testid="unit-option"]', (nodes) =>
+      nodes.map((node) => node.getAttribute('data-unit')),
+    );
+    check('升级后蛋白粉的「勺」被补回来了', upgradedUnits.includes('勺'), upgradedUnits);
+
+    section('[10] 页面没有 JS 报错');
     check('控制台无报错', pageErrors.length === 0, pageErrors.slice(0, 3));
   } finally {
     await cleanup();

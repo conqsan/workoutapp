@@ -123,6 +123,9 @@ model Supplement {
   id        Int      @id @default(autoincrement())
   name      String   @unique
   unit      String   @default("g")
+  /// 允许记录时使用的单位，存 JSON 数组字符串（SQLite 没有数组类型），
+  /// 例如 ["g","勺"] —— 读写都走 utils/supplementUnits.ts，不要直接当字符串用。
+  units     String   @default("[]")
   isDefault Boolean  @default(false) @map("is_default")
   createdAt DateTime @default(now()) @map("created_at")
   updatedAt DateTime @updatedAt @map("updated_at")

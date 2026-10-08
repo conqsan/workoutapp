@@ -1,6 +1,7 @@
 import type { Prisma } from '@prisma/client';
 import { ApiError } from '../utils/ApiError';
 import { toSupplementDto } from '../utils/dto';
+import { serializeUnits } from '../utils/supplementUnits';
 import * as supplementRepository from '../repositories/supplement.repository';
 import type { CreateSupplementInput, UpdateSupplementInput } from '../schemas/supplement.schema';
 import type { SupplementDto } from '../types/api';
@@ -19,6 +20,7 @@ export async function createSupplement(input: CreateSupplementInput): Promise<Su
   const row = await supplementRepository.create({
     name: input.name,
     unit: input.unit,
+    units: serializeUnits(input.units, input.unit),
     isDefault: false,
   });
 
@@ -44,6 +46,9 @@ export async function updateSupplement(
   const data: Prisma.SupplementUpdateInput = {};
   if (input.name !== undefined) data.name = input.name;
   if (input.unit !== undefined) data.unit = input.unit;
+  if (input.units !== undefined) {
+    data.units = serializeUnits(input.units, input.unit ?? current.unit);
+  }
 
   const row = await supplementRepository.update(id, data);
   return toSupplementDto(row);

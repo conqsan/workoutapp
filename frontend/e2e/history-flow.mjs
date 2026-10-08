@@ -187,7 +187,71 @@ async function main() {
       normalizeNumberText(await page.evaluate(() => document.body.innerText)).includes('共3次训练'),
     );
 
-    section('[7] 页面没有 JS 报错');
+    section('[7] 删除：从列表删掉 10/3（背）');
+    const rowSelector = '[data-testid="history-row"][data-date="2026-10-03"]';
+    check('列表里有 10/3 那一行', (await page.$(rowSelector)) !== null);
+
+    await clickWhenReady(await page.$(`${rowSelector} [data-testid="delete-history"]`));
+    await clickWhenReady(await page.$(`${rowSelector} [data-testid="confirm-delete-history"]`));
+
+    check(
+      '删完只剩 2 条',
+      await waitUntil(async () => (await historyDates(page)).length === 2),
+      await historyDates(page),
+    );
+    check(
+      '10/3 不再出现在列表里',
+      !(await historyDates(page)).includes('2026-10-03'),
+      await historyDates(page),
+    );
+    check(
+      '计数同步更新成 2',
+      (await page.$eval('[data-testid="history-count"]', (el) => el.textContent ?? '')).includes(
+        '2 次训练',
+      ),
+      await page.$eval('[data-testid="history-count"]', (el) => el.textContent ?? ''),
+    );
+
+    section('[8] 删除：从详情删掉 10/1（胸）');
+    await clickWhenReady(await itemByDate(page, '2026-10-01'));
+    await waitFor(page, 'history-exercise', undefined, 10_000);
+    const deletedDetailUrl = page.url();
+
+    await clickWhenReady(await page.$('[data-testid="delete-workout"]'));
+    await clickWhenReady(await page.$('[data-testid="delete-workout-confirm"]'));
+    await page.waitForFunction(() => location.pathname === '/history', { timeout: 8000 });
+
+    check('删除后自动回到历史列表', page.url().endsWith('/history'), page.url());
+    check(
+      '只剩 10/6 一条',
+      await waitUntil(async () => {
+        const dates = await historyDates(page);
+        return dates.length === 1 && dates[0] === '2026-10-06';
+      }),
+      await historyDates(page),
+    );
+
+    await page.goto(deletedDetailUrl, { waitUntil: 'domcontentloaded' });
+    check(
+      '已经删掉的训练详情打不开了',
+      await waitUntil(async () => (await page.content()).includes('找不到这次训练')),
+    );
+
+    section('[9] 删训练不影响当天的补剂记录');
+    await page.goto(`${BASE_URL}/history`, { waitUntil: 'domcontentloaded' });
+    await waitFor(page, 'history-item', undefined, 10_000);
+    await clickWhenReady(await itemByDate(page, '2026-10-06'));
+    await waitFor(page, 'history-exercise', undefined, 10_000);
+    const remainingText = await page.$eval('[data-testid="history-supplements"]', (node) =>
+      (node.textContent ?? '').replace(/\s+/g, ''),
+    );
+    check(
+      '10/6 的补剂记录还在（肌酸 5g）',
+      remainingText.includes('肌酸') && remainingText.includes('5g'),
+      remainingText,
+    );
+
+    section('[10] 页面没有 JS 报错');
     check('控制台无报错', pageErrors.length === 0, pageErrors.slice(0, 3));
   } finally {
     await cleanup();

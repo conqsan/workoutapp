@@ -79,6 +79,29 @@ export function SupplementRecordRow({
               />
             </label>
           </div>
+          {record.units.length > 1 ? (
+            <div className="flex flex-wrap items-center gap-2">
+              <span className="text-[11px] font-medium text-slate-500">可选单位</span>
+              <div className="flex flex-wrap gap-1.5" data-testid="unit-options">
+                {record.units.map((option) => (
+                  <button
+                    key={option}
+                    type="button"
+                    data-testid="unit-option"
+                    data-unit={option}
+                    onClick={() => setUnit(option)}
+                    className={`min-h-[32px] rounded-full px-3 text-xs font-medium ${
+                      unit === option
+                        ? 'bg-brand-600 text-white'
+                        : 'bg-white text-slate-600 ring-1 ring-slate-200'
+                    }`}
+                  >
+                    {option}
+                  </button>
+                ))}
+              </div>
+            </div>
+          ) : null}
           <div className="flex flex-wrap gap-1.5">
             {TIME_PRESETS.map((preset) => (
               <button

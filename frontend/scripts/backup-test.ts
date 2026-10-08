@@ -464,6 +464,37 @@ function main(): void {
     danglingPlan.result.warnings,
   );
 
+  section('[10] 补剂的可选单位（g / 勺）');
+  const withUnits = makeSnapshot();
+  withUnits.data.supplements = [
+    { id: 'sup1', name: '蛋白粉', unit: 'g', units: ['g', '勺'], isDefault: true, sortOrder: 0 },
+  ];
+  const unitsResult = validateBackup(JSON.parse(toBackupJson(withUnits)) as unknown);
+  check('备份里的可选单位能通过校验', unitsResult.ok);
+  check(
+    '可选单位原样保留（g / 勺）',
+    unitsResult.ok && unitsResult.snapshot.data.supplements[0]?.units.join('/') === 'g/勺',
+    unitsResult.ok ? unitsResult.snapshot.data.supplements[0]?.units : null,
+  );
+
+  const legacyResult = validateBackup(JSON.parse(toBackupJson(makeSnapshot())) as unknown);
+  check(
+    '老备份没有 units 字段时按原来的单位兜底',
+    legacyResult.ok && legacyResult.snapshot.data.supplements[0]?.units.join('/') === 'g',
+    legacyResult.ok ? legacyResult.snapshot.data.supplements[0]?.units : null,
+  );
+
+  const badUnitsSnapshot = makeSnapshot();
+  badUnitsSnapshot.data.supplements = [
+    { id: 'sup1', name: '蛋白粉', unit: 'g', units: ['g', ''], isDefault: true, sortOrder: 0 },
+  ];
+  const badUnitsResult = validateBackup(JSON.parse(toBackupJson(badUnitsSnapshot)) as unknown);
+  check(
+    'units 里有空字符串时提示到字段路径',
+    !badUnitsResult.ok && badUnitsResult.errors[0]?.includes('units') === true,
+    badUnitsResult.ok ? null : badUnitsResult.errors,
+  );
+
   console.log('');
   if (failures > 0) {
     console.error(`失败：${checks - failures}/${checks} 项通过，${failures} 项未通过。\n`);

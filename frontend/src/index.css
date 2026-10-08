@@ -37,6 +37,24 @@
     font-size: 16px;
   }
 
+  /* 手机端原生日期控件自带内在宽度：中文 locale 下「2026/10/08」加上右边的日历图标很容易
+     比容器还宽，表现出来就是日期框横向顶出屏幕、或者里面的文字被挤掉。
+     允许它和它内部的日期分区一起收缩，就正常了（min-width: auto 是罪魁祸首）。 */
+  input[type='date'] {
+    min-width: 0;
+    max-width: 100%;
+  }
+
+  input[type='date']::-webkit-datetime-edit {
+    min-width: 0;
+    padding: 0;
+  }
+
+  input[type='date']::-webkit-calendar-picker-indicator {
+    margin-inline-start: 0;
+    padding: 0;
+  }
+
   button {
     font: inherit;
   }

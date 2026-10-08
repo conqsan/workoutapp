@@ -134,7 +134,13 @@ export interface CreateExerciseInput {
 export interface Supplement {
   id: string;
   name: string;
+  /** 默认单位（没有特别说明时用它） */
   unit: string;
+  /**
+   * 允许记录时使用的单位，第一项是默认值，例如蛋白粉 ['g', '勺']。
+   * 老数据（v4 之前）没有这个字段，读的时候按 [unit] 兜底。
+   */
+  units: string[];
   isDefault: boolean;
   /** 仅本地使用：默认补剂按 seed 顺序排在前面 */
   sortOrder: number;
@@ -156,12 +162,16 @@ export interface SupplementRecord {
 /** 展示用：把补剂名称冗余进来，避免每次都去查一次补剂表 */
 export interface SupplementRecordWithSupplement extends SupplementRecord {
   supplementName: string;
+  /** 所属补剂允许的单位（记录行里可以直接点选） */
+  units: string[];
   isDefault: boolean;
 }
 
 export interface CreateSupplementInput {
   name: string;
   unit?: string;
+  /** 不传就按 [unit] 处理 */
+  units?: string[];
 }
 
 export interface SupplementRecordInput {
