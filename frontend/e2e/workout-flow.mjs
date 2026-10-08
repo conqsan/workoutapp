@@ -22,8 +22,9 @@ import {
 import {
   addExercise,
   addSet,
+  activeSetValues,
   cardByName,
-  cardSetValues,
+  cardSetSummaries,
   clickQuickWeight,
   countSets,
 } from './workout-helpers.mjs';
@@ -60,9 +61,10 @@ async function main() {
     check('仍然停留在 /workout（没有误点底部导航）', page.url().endsWith('/workout'), page.url());
     check('共有 3 组', (await countSets(page)) === 3, await countSets(page));
     check(
-      '每组重量分别是 80 / 80 / 75',
-      JSON.stringify(await cardSetValues(benchCard)) === JSON.stringify(['80', '80', '75']),
-      await cardSetValues(benchCard),
+      '三组数据分别是 80kg×10 / 80kg×8 / 75kg×10',
+      JSON.stringify(await cardSetSummaries(benchCard)) ===
+        JSON.stringify(['80kg×10', '80kg×8', '75kg×10']),
+      await cardSetSummaries(benchCard),
     );
     check(
       '训练总量 = 80×10 + 80×8 + 75×10 = 2190 kg',
@@ -78,14 +80,16 @@ async function main() {
     );
 
     section('[4] 快捷重量调整：75 → 点 +2.5 → 77.5');
-    const firstWeight = (await benchCard.$$('[data-testid="set-weight"]'))[0];
+    // 组是横向芯片：先选中第 1 组，编辑器才会切到它
+    await clickWhenReady((await benchCard.$$('[data-testid="set-chip"]'))[0]);
+    const firstWeight = await benchCard.$('[data-testid="set-weight"]');
     await setInputValue(firstWeight, 75);
     await clickQuickWeight(benchCard, '+2.5');
 
     check(
       '输入框变成 77.5',
-      await waitUntil(async () => (await cardSetValues(benchCard))[0] === '77.5'),
-      await cardSetValues(benchCard),
+      await waitUntil(async () => (await activeSetValues(benchCard))?.weight === '77.5'),
+      await activeSetValues(benchCard),
     );
     check(
       '总量随之更新 = 77.5×10 + 80×8 + 75×10 = 2165 kg',
@@ -100,8 +104,8 @@ async function main() {
     check('复制后变成 4 组', await waitUntil(async () => (await countSets(page)) === 4));
     check(
       '新一组沿用上一组的重量 75',
-      await waitUntil(async () => (await cardSetValues(benchCard))[3] === '75'),
-      await cardSetValues(benchCard),
+      await waitUntil(async () => (await cardSetSummaries(benchCard))[3] === '75kg×10'),
+      await cardSetSummaries(benchCard),
     );
     check(
       '组号正确（出现第 4 组）',
@@ -109,23 +113,25 @@ async function main() {
     );
 
     section('[6] 重量单位 kg ↔ lb');
+    // 先回到第 1 组（77.5kg），再切单位
+    await clickWhenReady((await benchCard.$$('[data-testid="set-chip"]'))[0]);
     check(
-      '切换前是 77.5（kg）',
-      (await cardSetValues(benchCard))[0] === '77.5',
-      await cardSetValues(benchCard),
+      '切换前第 1 组是 77.5kg×10',
+      (await cardSetSummaries(benchCard))[0] === '77.5kg×10',
+      await cardSetSummaries(benchCard),
     );
     check(
-      '第 1 组有 kg / lb 两个单位按钮',
-      (await benchCard.$$('[data-testid="weight-unit"]')).length === 8, // 4 组 × 2 个按钮
+      '编辑器里有 kg / lb 两个单位按钮',
+      (await benchCard.$$('[data-testid="weight-unit"]')).length === 2,
       (await benchCard.$$('[data-testid="weight-unit"]')).length,
     );
 
-    const toLb = (await benchCard.$$('[data-testid="weight-unit"][data-unit="lb"]'))[0];
+    const toLb = await benchCard.$('[data-testid="weight-unit"][data-unit="lb"]');
     await clickWhenReady(toLb);
     check(
-      '切成 lb 后数值跟着换算：77.5kg → 170.86lb',
-      await waitUntil(async () => (await cardSetValues(benchCard))[0] === '170.86'),
-      await cardSetValues(benchCard),
+      '切成 lb 后整体换算：77.5kg×10 → 170.86lb×10',
+      await waitUntil(async () => (await cardSetSummaries(benchCard))[0] === '170.86lb×10'),
+      await cardSetSummaries(benchCard),
     );
     check(
       '换算不会改变实际重量，训练总量仍是 2915kg',
@@ -135,12 +141,12 @@ async function main() {
       await textOf(page, 'total-volume'),
     );
 
-    const backToKg = (await benchCard.$$('[data-testid="weight-unit"][data-unit="kg"]'))[0];
+    const backToKg = await benchCard.$('[data-testid="weight-unit"][data-unit="kg"]');
     await clickWhenReady(backToKg);
     check(
-      '切回 kg 恢复成 77.5',
-      await waitUntil(async () => (await cardSetValues(benchCard))[0] === '77.5'),
-      await cardSetValues(benchCard),
+      '切回 kg 恢复成 77.5kg×10',
+      await waitUntil(async () => (await cardSetSummaries(benchCard))[0] === '77.5kg×10'),
+      await cardSetSummaries(benchCard),
     );
 
     section('[7] 再加一个部位：肩 → 哑铃侧平举，10×12 两组');
@@ -167,15 +173,20 @@ async function main() {
 
     // 刷新后默认展开第一个动作（杠铃卧推）
     const benchAfterReload = await cardByName(page, '杠铃卧推');
-    const valuesAfterReload = await cardSetValues(benchAfterReload);
+    const summariesAfterReload = await cardSetSummaries(benchAfterReload);
 
     check('刷新后仍是训练中', (await page.content()).includes('训练中'));
     check('刷新后动作还是 2 个', (await page.$$('[data-testid="exercise-card"]')).length === 2);
-    check('刷新后杠铃卧推还是 4 组', valuesAfterReload.length === 4, valuesAfterReload.length);
     check(
-      '刷新后每组的重量都还在（77.5 / 80 / 75 / 75）',
-      JSON.stringify(valuesAfterReload) === JSON.stringify(['77.5', '80', '75', '75']),
-      valuesAfterReload,
+      '刷新后杠铃卧推还是 4 组',
+      summariesAfterReload.length === 4,
+      summariesAfterReload.length,
+    );
+    check(
+      '刷新后每组数据都还在（77.5×10 / 80×8 / 75×10 / 75×10）',
+      JSON.stringify(summariesAfterReload) ===
+        JSON.stringify(['77.5kg×10', '80kg×8', '75kg×10', '75kg×10']),
+      summariesAfterReload,
     );
     check(
       '刷新后总组数 6',

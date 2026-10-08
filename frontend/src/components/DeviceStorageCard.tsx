@@ -16,9 +16,7 @@ export function DeviceStorageCard(): ReactElement {
     <section className="card space-y-2" data-testid="storage-status">
       <div className="flex items-center justify-between gap-2">
         <p className="text-xs font-medium text-slate-500">数据存储</p>
-        <span
-          className="rounded-full bg-brand-50 px-2 py-0.5 text-[11px] font-semibold text-brand-700"
-        >
+        <span className="rounded-full bg-brand-50 px-2 py-0.5 text-[11px] font-semibold text-brand-700">
           本机
         </span>
       </div>

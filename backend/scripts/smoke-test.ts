@@ -23,19 +23,7 @@ import type {
   WorkoutDto,
 } from '../src/types/api';
 
-const DEFAULT_MUSCLE_NAMES = [
-  '胸',
-  '背',
-  '肩',
-  '二头',
-  '三头',
-  '腿',
-  '臀',
-  '腹',
-  '小腿',
-  '全身',
-  '其他',
-];
+const DEFAULT_MUSCLE_NAMES = ['胸', '背', '肩', '二头', '三头', '腿', '臀', '腹', '全身', '其他'];
 
 const DEFAULT_SUPPLEMENT_NAMES = ['增肌粉', '肌酸', '蛋白粉'];
 
@@ -111,9 +99,9 @@ async function main(): Promise<void> {
   const muscles = muscleRes.json<SuccessBody<MuscleDto[]>>();
 
   check('HTTP 200', muscleRes.statusCode === 200, muscleRes.statusCode);
-  check('返回 11 个默认部位', muscles.data?.length === 11, muscles.data?.length);
+  check('返回 10 个默认部位（小腿已移除）', muscles.data?.length === 10, muscles.data?.length);
   check(
-    '11 个默认部位名称与顺序正确',
+    '10 个默认部位名称与顺序正确',
     JSON.stringify(muscles.data?.map((m) => m.name)) === JSON.stringify(DEFAULT_MUSCLE_NAMES),
     muscles.data?.map((m) => m.name),
   );
@@ -134,7 +122,7 @@ async function main(): Promise<void> {
   const exercises = exerciseRes.json<SuccessBody<ExerciseDto[]>>();
 
   check('HTTP 200', exerciseRes.statusCode === 200, exerciseRes.statusCode);
-  check('默认动作已 seed（40 个）', exercises.data?.length === 40, exercises.data?.length);
+  check('默认动作已 seed（46 个）', exercises.data?.length === 46, exercises.data?.length);
   check(
     '包含「胸 / 杠铃卧推」',
     (exercises.data ?? []).some((e) => e.name === '杠铃卧推' && e.muscle.name === '胸'),
@@ -166,7 +154,11 @@ async function main(): Promise<void> {
   const chestExercises = chestRes.json<SuccessBody<ExerciseDto[]>>();
 
   check('HTTP 200', chestRes.statusCode === 200, chestRes.statusCode);
-  check('只返回胸部的动作（9 个）', chestExercises.data?.length === 9, chestExercises.data?.length);
+  check(
+    '只返回胸部的动作（10 个）',
+    chestExercises.data?.length === 10,
+    chestExercises.data?.length,
+  );
   check(
     '全部属于「胸」',
     (chestExercises.data ?? []).every((e) => e.muscleId === chest?.id),

@@ -104,12 +104,63 @@ async function seedSupplements(): Promise<void> {
   console.log(`  补剂：新增 ${after - before} 个，共 ${after} 个`);
 }
 
+/**
+ * 清掉已经从 shared/defaults 里移除的默认数据。
+ *
+ * 只删「默认的（isCustom = false）」且「没有任何引用」的：
+ * 用户自建的动作不动，出现在训练记录里的动作也不动（历史不能丢）。
+ * 例如把「高位下拉」拆成（正握/反握）两个之后，旧的「高位下拉」会被清掉；
+ * 而删掉「小腿」这个部位时，因为它下面一个动作都没有，也会被清掉。
+ */
+async function removeStaleDefaults(): Promise<void> {
+  const muscleSeeds = loadDefaults<MuscleSeed[]>('muscles.json');
+  const exerciseSeeds = loadDefaults<ExerciseSeed[]>('exercises.json');
+
+  const keepMuscles = new Set(muscleSeeds.map((muscle) => muscle.name));
+  const keepExercises = new Set(
+    exerciseSeeds.map((exercise) => `${exercise.muscle}\u0000${exercise.name}`),
+  );
+
+  // 1) 已经被移除的默认动作
+  const existingExercises = await prisma.exercise.findMany({
+    where: { isCustom: false },
+    select: { id: true, name: true, muscle: { select: { name: true } } },
+  });
+
+  let removedExercises = 0;
+  for (const row of existingExercises) {
+    if (keepExercises.has(`${row.muscle.name}\u0000${row.name}`)) continue;
+    const used = await prisma.workoutExercise.count({ where: { exerciseId: row.id } });
+    if (used > 0) continue;
+    await prisma.exercise.delete({ where: { id: row.id } });
+    removedExercises += 1;
+  }
+
+  // 2) 已经被移除的部位（只删下面一个动作都没有的）
+  const existingMuscles = await prisma.muscle.findMany({
+    include: { _count: { select: { exercises: true } } },
+  });
+
+  let removedMuscles = 0;
+  for (const muscle of existingMuscles) {
+    if (keepMuscles.has(muscle.name)) continue;
+    if (muscle._count.exercises > 0) continue;
+    await prisma.muscle.delete({ where: { id: muscle.id } });
+    removedMuscles += 1;
+  }
+
+  if (removedExercises > 0 || removedMuscles > 0) {
+    console.log(`  清理已移除的默认数据：动作 ${removedExercises} 个、部位 ${removedMuscles} 个`);
+  }
+}
+
 async function main(): Promise<void> {
   console.log(`[seed] 读取默认数据：${DEFAULTS_DIR}`);
 
   const muscleIdByName = await seedMuscles();
   await seedExercises(muscleIdByName);
   await seedSupplements();
+  await removeStaleDefaults();
 
   console.log('[seed] 完成。');
 }

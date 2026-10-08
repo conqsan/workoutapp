@@ -8,9 +8,11 @@
   { "muscle": "胸", "name": "蝴蝶机夹胸" },
   { "muscle": "胸", "name": "绳索夹胸" },
   { "muscle": "胸", "name": "双杠臂屈伸" },
+  { "muscle": "胸", "name": "器械推胸" },
 
   { "muscle": "背", "name": "引体向上" },
-  { "muscle": "背", "name": "高位下拉" },
+  { "muscle": "背", "name": "高位下拉（正握）" },
+  { "muscle": "背", "name": "高位下拉（反握）" },
   { "muscle": "背", "name": "杠铃划船" },
   { "muscle": "背", "name": "T 杠划船" },
   { "muscle": "背", "name": "坐姿划船" },
@@ -23,6 +25,8 @@
   { "muscle": "肩", "name": "哑铃前平举" },
   { "muscle": "肩", "name": "反向飞鸟" },
   { "muscle": "肩", "name": "面拉" },
+  { "muscle": "肩", "name": "哑铃飞鸟" },
+  { "muscle": "肩", "name": "器械推肩" },
 
   { "muscle": "二头", "name": "杠铃弯举" },
   { "muscle": "二头", "name": "哑铃弯举" },
@@ -43,5 +47,8 @@
   { "muscle": "腿", "name": "罗马尼亚硬拉" },
   { "muscle": "腿", "name": "保加利亚分腿蹲" },
   { "muscle": "腿", "name": "臀推" },
-  { "muscle": "腿", "name": "小腿提踵" }
+  { "muscle": "腿", "name": "小腿提踵" },
+
+  { "muscle": "腹", "name": "卷腹" },
+  { "muscle": "腹", "name": "磕头" }
 ]

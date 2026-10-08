@@ -21,11 +21,13 @@
     "lint": "npm run lint --workspace backend && npm run lint --workspace frontend",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
-    "test": "npm run test --workspace backend && npm run test:stats --workspace frontend",
+    "test": "npm run test --workspace backend && npm run test:stats --workspace frontend && npm run test:backup --workspace frontend",
     "e2e": "npm run e2e --workspace frontend",
     "db:generate": "npm run db:generate --workspace backend",
     "db:push": "npm run db:push --workspace backend",
     "db:migrate": "npm run db:migrate --workspace backend",
+    "db:seed": "npm run db:seed --workspace backend",
+    "db:reset": "npm run db:reset --workspace backend",
     "db:studio": "npm run db:studio --workspace backend"
   },
   "devDependencies": {

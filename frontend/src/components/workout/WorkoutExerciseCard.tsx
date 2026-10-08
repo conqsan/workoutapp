@@ -3,12 +3,32 @@ import { SetRow } from './SetRow';
 import type {
   LastWorkoutSummary,
   WorkoutExerciseWithSets,
+  WorkoutSet,
   WorkoutSetInput,
   WorkoutSetPatch,
 } from '@/data';
 import { cn } from '@/utils/cn';
 import { formatVolume } from '@/utils/format';
-import { formatWeight } from '@/utils/weight';
+import { formatWeight, formatWeightValue } from '@/utils/weight';
+
+/** 组芯片上显示的摘要；单位只在不是 kg 时显示，避免芯片过长 */
+function chipSummary(set: WorkoutSet): string {
+  const weight = formatWeightValue(set.weight);
+  return set.weightUnit === 'kg'
+    ? `${weight}×${set.reps}`
+    : `${weight}${set.weightUnit}×${set.reps}`;
+}
+
+/** 给测试和无障碍用的完整摘要，始终带单位 */
+function chipSummaryWithUnit(set: WorkoutSet): string {
+  return `${formatWeightValue(set.weight)}${set.weightUnit}×${set.reps}`;
+}
+
+/** 组芯片的三种状态：选中 / 已完成 / 未完成 */
+function chipClass(selected: boolean, completed: boolean): string {
+  if (selected) return 'bg-brand-600 text-white';
+  return completed ? 'bg-brand-50 text-brand-700' : 'bg-slate-100 text-slate-600';
+}
 
 export interface WorkoutExerciseCardProps {
   entry: WorkoutExerciseWithSets;
@@ -58,27 +78,40 @@ export function WorkoutExerciseCard({
   const [noteOpen, setNoteOpen] = useState(false);
   const [note, setNote] = useState(entry.note);
   const [confirmRemove, setConfirmRemove] = useState(false);
-  const setsContainerRef = useRef<HTMLDivElement | null>(null);
+  /** 组以横向芯片排列，只编辑选中的那一组 —— 加多少组卡片都不会变长 */
+  const [activeSetId, setActiveSetId] = useState<string | null>(null);
+  const setStripRef = useRef<HTMLDivElement | null>(null);
   const previousSetCountRef = useRef(entry.sets.length);
 
   useEffect(() => setNote(entry.note), [entry.note]);
   useEffect(() => setConfirmRemove(false), [entry.id]);
 
   /**
-   * 刚加了一组就把它滚进视野。
-   * block: 'nearest' 只在看不见时才滚动，已经可见时不会乱跳。
+   * 加了新的一组：自动选中它，并把芯片条横向滚到最右。
+   * 直接改 scrollLeft，不用 scrollIntoView —— 后者会连带滚动整个页面。
    */
   useEffect(() => {
     const previous = previousSetCountRef.current;
     previousSetCountRef.current = entry.sets.length;
     if (entry.sets.length <= previous) return;
 
-    const lastRow = setsContainerRef.current?.lastElementChild;
-    lastRow?.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
-  }, [entry.sets.length]);
+    setActiveSetId(entry.sets[entry.sets.length - 1]?.id ?? null);
+    const strip = setStripRef.current;
+    if (strip) strip.scrollLeft = strip.scrollWidth;
+  }, [entry.sets]);
+
+  /** 选中的那一组被删掉了，回落到最后一组 */
+  useEffect(() => {
+    if (activeSetId === null) return;
+    if (entry.sets.some((set) => set.id === activeSetId)) return;
+    setActiveSetId(entry.sets[entry.sets.length - 1]?.id ?? null);
+  }, [activeSetId, entry.sets]);
 
   const volume = entry.sets.reduce((total2, set) => total2 + set.weight * set.reps, 0);
   const lastSet = entry.sets[entry.sets.length - 1];
+  /** 没有明确选中时，默认编辑最后一组 */
+  const activeSet =
+    entry.sets.find((set) => set.id === activeSetId) ?? entry.sets[entry.sets.length - 1] ?? null;
 
   /**
    * 添加一组：优先沿用这一组上一次的数据，其次参考上次训练的组，
@@ -234,16 +267,35 @@ export function WorkoutExerciseCard({
               还没有记录，先添加一组
             </p>
           ) : (
-            <div className="space-y-2" ref={setsContainerRef}>
-              {entry.sets.map((set) => (
+            <div className="space-y-2">
+              {/* 组芯片：横向排列，点一下切换要编辑的组 */}
+              <div className="-mx-1 flex gap-1.5 overflow-x-auto px-1 pb-1" ref={setStripRef}>
+                {entry.sets.map((set) => (
+                  <button
+                    key={set.id}
+                    type="button"
+                    data-testid="set-chip"
+                    data-summary={chipSummaryWithUnit(set)}
+                    onClick={() => setActiveSetId(set.id)}
+                    className={cn(
+                      'min-h-[40px] shrink-0 rounded-full px-3 text-sm font-medium transition',
+                      chipClass(set.id === activeSet?.id, set.completed),
+                    )}
+                  >
+                    <span className="font-bold">{set.setNumber}</span>
+                    <span className="ml-1.5">{chipSummary(set)}</span>
+                  </button>
+                ))}
+              </div>
+
+              {activeSet ? (
                 <SetRow
-                  key={set.id}
-                  set={set}
+                  set={activeSet}
                   disabled={disabled}
                   onUpdate={onUpdateSet}
                   onRemove={onRemoveSet}
                 />
-              ))}
+              ) : null}
             </div>
           )}
 

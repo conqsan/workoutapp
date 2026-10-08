@@ -7,6 +7,7 @@
  */
 
 import type { WeightUnit } from '@/utils/weight';
+import type { BackupSnapshot, ImportResult } from './backup';
 
 export type { WeightUnit };
 
@@ -227,4 +228,10 @@ export interface FitLogRepository {
 
   // 上一次训练
   getLastWorkout(exerciseId: string): Promise<LastWorkoutSummary | null>;
+
+  // 备份与恢复（Phase 9）
+  /** 把本机全部数据打包成一份备份快照（导出 JSON 的内容） */
+  exportBackup(): Promise<BackupSnapshot>;
+  /** 把一份已经校验过的备份合并进本机（按 id 与业务键去重），返回新增 / 跳过的明细 */
+  importBackup(snapshot: BackupSnapshot): Promise<ImportResult>;
 }

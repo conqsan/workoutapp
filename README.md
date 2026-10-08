@@ -24,14 +24,14 @@
 | Phase 6 | 统计系统             | ✅ 已完成 |
 | Phase 7 | 移动端 UI 优化       | ✅ 已完成 |
 | Phase 8 | PWA 和离线           | ✅ 已完成 |
-| Phase 9 | 全面测试和最终优化   | ⬜ 未开始 |
+| Phase 9 | 全面测试和最终优化   | ✅ 已完成 |
 
 **Phase 1 交付内容**：前后端项目骨架、目录结构、TypeScript strict、ESLint、Prettier、
 Tailwind、Prisma + SQLite 配置、环境变量、统一错误处理、底部导航与五个页面占位、
 一条打通前后端的 `GET /api/health` 通道，以及一个可一键运行的冒烟测试。
 
 **Phase 2 交付内容**：Prisma 的 7 张表与迁移、读 `shared/defaults` 的幂等 seed
-（11 个部位 / 40 个动作 / 3 个补剂）、部位 / 动作 / 补剂的读接口和动作 / 补剂的增删改、
+（10 个部位 / 46 个动作 / 3 个补剂）、部位 / 动作 / 补剂的读接口和动作 / 补剂的增删改、
 按「路由 → 控制器 → 服务 → 仓储」分层的代码结构、Zod 输入校验，以及扩展到 52 项断言的
 冒烟测试。数据库状态也从 Phase 1 的「未初始化」变成「已就绪」。
 
@@ -71,8 +71,17 @@ Tailwind、Prisma + SQLite 配置、环境变量、统一错误处理、底部�
 部署链路：GitHub Actions 构建 + 发布到 GitHub Pages，子路径、SPA 深链接 404 都已处理。
 详见「十一、部署到 GitHub Pages」。
 
-> Phase 1 **没有**实现任何业务功能（训练、补剂、统计都还没有）。页面上的数据位置
-> 都用「Phase N」标注了归属，方便确认没有提前偷跑。
+**Phase 9 交付内容**：数据导出 / 导入与收尾。
+「我的」页新增**数据备份**卡片：导出 JSON（完整备份 `fitlog-backup-YYYY-MM-DD.json`）、
+导出 CSV（一行 = 一组的训练明细，含换算成 kg 的列），以及导入 JSON。
+导入是**合并**而不是覆盖：先校验格式与结构（非法 JSON、不是 FitLog 备份、版本过新、
+字段类型不对、日期不存在，都会给出精确到字段路径的中文提示），再按 id 与业务键去重，
+被跳过的实体还会让引用改指向本机已有的那条 —— 所以从另一台设备导进来不会出现两个「胸」。
+同时做了一轮全面回归与清理：后端 134 项 + 统计 46 项 + 备份 / 导入 38 项 + 端到端 265 项，
+并顺手修掉了补剂记录「每条查一次库」的 N+1、移除了已经没有用处的 Phase 占位组件。
+
+> 注：Phase 1 时页面上的「Phase N」占位标注已经全部撤掉 —— 九个 Phase 都实现完了，
+> 留在界面上只会让人以为还有没做完的功能。
 
 ### 架构决策：本地优先 PWA
 
@@ -131,13 +140,13 @@ workout/                      # 仓库根目录（npm workspaces）
 │   ├── index.html
 │   ├── vite.config.ts        # 别名 @ -> src、@shared -> ../shared；/api 代理到后端
 │   ├── e2e/                  # 端到端测试（Puppeteer 驱动真实浏览器）
-│   ├── scripts/              # 统计逻辑的纯函数单元测试
+│   ├── scripts/              # 纯函数单元测试（统计 46 项 + 备份 / 导入 38 项）
 │   ├── public/               # 静态资源（favicon、Phase 8 的图标与 manifest）
 │   ├── tailwind.config.js
 │   ├── postcss.config.js
 │   ├── tsconfig.json
 │   └── src/
-│       ├── data/             # 本地数据层：repository 接口 + IndexedDB 实现
+│       ├── data/             # 本地数据层：repository 接口 + IndexedDB 实现 + 备份 / 导入
 │       ├── components/       # 可复用 UI 组件
 │       │   ├── icons/
 │       │   ├── workout/      # 训练页专用组件（SetRow / ExercisePicker …）
@@ -235,7 +244,7 @@ npm run db:seed                         # 写入默认部位 / 动作 / 补剂
 
 | 表                   | 说明                                                                   |
 | -------------------- | ---------------------------------------------------------------------- |
-| `muscles`            | 训练部位，11 项，`sort_order` 决定展示顺序                             |
+| `muscles`            | 训练部位，10 项，`sort_order` 决定展示顺序                             |
 | `exercises`          | 训练动作，唯一约束是 `(muscle_id, name)` —— 同名动作可以属于不同部位   |
 | `workouts`           | 一次训练，`status` = `active` / `completed`                            |
 | `workout_exercises`  | 某次训练里的某个动作，带 `sort_order` 和备注                           |
@@ -372,15 +381,15 @@ npm run typecheck     # 前后端 TypeScript 类型检查（strict，无 any 逃
 npm run lint          # 前后端 ESLint
 npm run format        # Prettier 写入
 npm run format:check  # Prettier 校验
-npm test              # 后端冒烟测试 134 项 + 统计单元测试 46 项
-npm run e2e           # 端到端测试（209 项，真实浏览器驱动全部主要流程）
+npm test              # 后端冒烟 134 项 + 统计 46 项 + 备份 / 导入 38 项
+npm run e2e           # 端到端测试（265 项，真实浏览器驱动全部主要流程）
 ```
 
 `npm test` 会构建真实的 Fastify 应用并用 `app.inject()` 发请求，覆盖：
 
 1. `GET /api/health` 返回统一成功结构，且 `database.initialized = true`
-2. `GET /api/muscles` 返回 11 个默认部位，名称与顺序正确
-3. `GET /api/exercises` 返回 40 个默认动作，带所属部位；`?muscleId=` 能按部位过滤
+2. `GET /api/muscles` 返回 10 个默认部位，名称与顺序正确
+3. `GET /api/exercises` 返回 46 个默认动作，带所属部位；`?muscleId=` 能按部位过滤
 4. `GET /api/supplements` 返回 3 个默认补剂
 5. `POST / PUT / DELETE /api/exercises` 全流程可用，`isCustom` 标记正确
 6. `POST / PUT / DELETE /api/supplements` 全流程可用
@@ -402,6 +411,14 @@ npm run e2e           # 端到端测试（209 项，真实浏览器驱动全部�
 lb 换算、同一天练两次合并成一个数据点。这些用固定日期测最可靠 —— 端到端很难造出
 「跨月的那一周」这种场景。
 
+`npm run test:backup` 是备份 / 恢复的**纯函数单元测试**（38 项）：校验（非法 JSON、
+不是 FitLog 备份、版本比 App 新、某组重量不是数字、2 月 30 日这种不存在的日期）、
+CSV（表头、lb → kg 换算、逗号 / 引号转义、BOM），以及导入去重的边界
+（同一份导两次、跨设备 id 不同但名字相同、引用的动作 / 补剂在本机不存在）。
+
+> 这两份纯函数测试都不需要浏览器，也不碰 IndexedDB，所以最适合守住边界用例 ——
+> 「同一份备份导两次」「跨设备 id 不同」这类场景用端到端很难稳定地造出来。
+
 测试会真的写数据库，但用的是唯一命名的临时记录，跑完自动删干净。
 
 ### 端到端测试（`npm run e2e`）
@@ -409,7 +426,7 @@ lb 换算、同一天练两次合并成一个数据点。这些用固定日期�
 需要先跑着 `npm run dev`。它用 Puppeteer 驱动本机已安装的 Edge/Chrome，在 390×844 的
 手机视口下把训练流程完整点一遍，重点是**刷新页面后数据必须还在**（Phase 3 的验收要求）。
 
-`npm run e2e` 会依次跑五条流程：
+`npm run e2e` 会依次跑七条流程：
 
 | 文件                       | 覆盖                                                                         | 断言数 |
 | -------------------------- | ---------------------------------------------------------------------------- | ------ |
@@ -417,7 +434,9 @@ lb 换算、同一天练两次合并成一个数据点。这些用固定日期�
 | `e2e/supplements-flow.mjs` | 补剂增改删与按日期查看                                                       | 19     |
 | `e2e/history-flow.mjs`     | 造三天数据 → 历史排序 / 详情 / 补剂不串日期                                  | 28     |
 | `e2e/stats-flow.mjs`       | 统计口径（本周 / 本月 / 各部位 / 趋势）+ 首页今日概览                        | 30     |
+| `e2e/backup-flow.mjs`      | 导出 JSON / CSV（真的下载文件并读回来核对）+ 导入合并、去重、坏文件报错      | 28     |
 | `e2e/viewport-flow.mjs`    | 320 / 375 / 390 / 414 / 768 五个宽度的布局自检（溢出 / 控件尺寸 / 底部导航） | 93     |
+| `e2e/pwa-flow.mjs`         | 用 `/workoutapp/` 子路径真实构建，验证 manifest / service worker / 断网      | 28     |
 
 只想跑其中一条：
 
@@ -426,7 +445,9 @@ npm run e2e:workout --workspace frontend
 npm run e2e:supplements --workspace frontend
 npm run e2e:history --workspace frontend
 npm run e2e:stats --workspace frontend
+npm run e2e:backup --workspace frontend
 npm run e2e:viewport --workspace frontend
+npm run e2e:pwa --workspace frontend
 ```
 
 每次都用全新的浏览器 profile，所以 IndexedDB 是干净的，既保证可重复，也不会碰你
@@ -493,9 +514,10 @@ npm run e2e:viewport --workspace frontend
 > 数据主存储是手机本地的 IndexedDB。原因和取舍见
 > [docs/adr/0001-local-first-pwa.md](docs/adr/0001-local-first-pwa.md)。
 
-PWA（manifest / service worker / 图标 / 离线缓存 / standalone）在 **Phase 8** 实现。
+PWA（manifest / service worker / 图标 / 离线缓存 / standalone）在 Phase 8 已经做完，
+站点是 <https://conqsan.github.io/workoutapp/>。
 
-完成后在手机上使用的方式是：
+在手机上使用的方式是：
 
 1. 手机浏览器打开 GitHub Pages 上的 FitLog 地址
 2. 「添加到主屏幕」
@@ -503,7 +525,7 @@ PWA（manifest / service worker / 图标 / 离线缓存 / standalone）在 **Pha
 
 **电脑不需要开机**。训练记录先写手机本地，断网也能用；需要备份时用导出 JSON。
 
-Phase 8 之前（也就是现在）想用手机试，还是走局域网：换成 `--host` 模式启动即可。
+想在开发机上用手机试（不走 Pages），就走局域网：换成 `--host` 模式启动即可。
 
 ```bash
 npm run dev:host
@@ -513,22 +535,53 @@ Vite 会把可用的局域网地址打印出来，例如 `http://192.168.50.235:
 Wi-Fi 后直接访问该地址即可。因为前端走的是 Vite 代理（`/api` → 本机 3001），
 浏览器只访问 5173 一个端口，所以 **不需要** 改 `CORS_ORIGIN`。
 
-注意这只是**开发期的临时手段**，电脑必须开着 —— 这正是 Phase 8 要解决的问题。
+注意这只是**开发期的临时手段**，电脑必须开着；日常使用请走 GitHub Pages。
 
 ---
 
 ## 十、数据导入导出
 
-在 **Phase 9** 实现。因为走的是本地优先架构，**导出/导入是主要的数据备份手段**，
-重要程度比原计划高，需要做得扎实：
+因为走的是本地优先架构，**导出 / 导入就是唯一的数据备份手段**（见 ADR 0001），
+所以 Phase 9 把它做完了，入口在「我的 → 数据备份」，卡片的右上角会显示本机现有的
+「几次训练 · 几组 · 几种补剂」。
 
-- Export JSON（完整数据，用于备份与跨设备迁移）—— 主要备份路径
-- Export CSV（训练组明细，便于用表格软件分析）
-- Import JSON：校验 JSON 格式 → 校验数据结构 → 去重 → 出错时给出明确提示
+### 导出 JSON（完整备份，主要路径）
+
+- 文件名 `fitlog-backup-YYYY-MM-DD.json`，一份备份 = 一个文件
+- 内容：部位、动作、补剂、补剂记录，以及每次训练（**训练 → 动作 → 组** 三层嵌套）
+- 文件顶部有 `format: "fitlog-backup"` 与 `version`，导入时先认这两个字段，
+  避免把随便一个 JSON 当成备份
+- 用途：定期备份、换手机 / 换浏览器时迁移
+
+### 导出 CSV（训练组明细，便于分析）
+
+- 文件名 `fitlog-sets-YYYY-MM-DD.csv`，**一行 = 一组**
+- 列：训练日期 / 开始时间 / 状态 / 部位 / 动作 / 组号 / 重量 / 单位 / 次数 /
+  休息(秒) / 本组训练量(kg) / 组备注 / 动作备注 / 训练备注
+- 重量额外给了一列换算成 kg 的「本组训练量(kg)」，所以同一次训练里混着 kg / lb
+  也能直接按动作透视
+- 带 UTF-8 BOM + CRLF，Excel 打开中文不乱码
+
+CSV **不能**导回来 —— 它是给表格软件看的，信息有损（比如动作备注会重复在每一行）。
+
+### 导入 JSON（合并，不覆盖）
+
+1. **校验格式与结构**：非法 JSON、不是 FitLog 备份、版本比 App 新、字段类型不对、
+   日期不存在（例如 2 月 30 日）……都会给出**精确到字段路径**的中文提示，
+   例如 `data.workouts[0].exercises[0].sets[0].weight 必须是数字`
+2. 校验通过才写库，而且**七张表在同一个事务里写**；校验失败时不会写入任何数据
+3. 去重后再合并：
+   - 先按 `id`：本机已经有了 → 跳过
+   - 再按业务键：部位 / 动作 / 补剂按**名字**，训练按「日期 + 开始时间」，
+     补剂记录按「补剂 + 日期 + 用量 + 单位 + 时间」
+4. 被跳过的实体，会让引用它的地方改指向本机已有的那条 —— 所以从另一台设备导进来
+   不会出现两个「胸」，也不会多出一个「杠铃卧推」
+
+导入完成后会显示「已导入 N 条记录」+「跳过重复：M 条」；有需要提醒的情况
+（引用的动作 / 补剂在本机不存在、导入的数据里包含进行中的训练）会一并列出来。
+因为导入是合并 + 幂等，**同一份文件重复导入是安全的**。
 
 ---
-
-## 十二、常见问题
 
 ## 十一、部署到 GitHub Pages（PWA 上线）
 
@@ -619,8 +672,10 @@ manifest、图标、service worker 注册、**断网刷新后 App 与数据都�
 ### 关于后端
 
 部署到 Pages 的只有前端。后端（Fastify + Prisma + SQLite）仍然是电脑上的备份/分析库，
-Phase 8 没有做实时同步 —— 手机上的数据本来就存在本地，离线可用，
-所以不依赖后端；备份走 Phase 9 的 JSON 导出 / 导入。
+没有做实时同步 —— 手机上的数据本来就存在本地，离线可用，所以不依赖后端；
+备份与迁移走「我的 → 导出 / 导入 JSON」。
+
+## 十二、常见问题
 
 **Q：`npm run dev` 提示 5173 端口被占用？**
 
@@ -684,7 +739,24 @@ Puppeteer 的 `launch()` 会因此判定失败。项目里已经改成「自己�
 **Q：训练记录存在哪里？换浏览器会丢吗？**
 
 存在浏览器的 IndexedDB 里，所以**换浏览器或清空站点数据会丢**。这是本地优先架构的代价，
-备份手段是 Phase 9 的「导出 JSON」。同一个浏览器里刷新、关掉重开都不会丢。
+备份手段是「我的 → 导出 JSON」。同一个浏览器里刷新、关掉重开都不会丢。
+
+**Q：换手机了，怎么把数据搬过去？**
+
+旧手机「我的 → 导出 JSON」拿到 `fitlog-backup-YYYY-MM-DD.json`，传给新手机，
+新手机打开同一个站点 →「我的 → 导入 JSON」选这个文件即可。导入是**合并**：只补本机
+没有的，重复的自动跳过，新手机上已有的记录不会被覆盖，所以可以放心重复导入同一份文件。
+
+**Q：导入报「这个文件不是有效的 FitLog 备份」怎么办？**
+
+提示里会列出具体哪一项不对，例如 `data.workouts[0].weight 必须是数字`。最常见的三个原因：
+选错了文件（把 CSV 当 JSON 导入）、文件被手工改过、备份来自更新版本的 App。
+导入失败时**不会写入任何数据**，本机数据保持原样，可以放心重试。
+
+**Q：导出的 CSV 用 Excel 打开怎么中文乱码？**
+
+文件本身带 UTF-8 BOM，正常双击不会乱码。如果还是乱的，多半是编辑器按 GBK 打开了 ——
+在打开方式里选「UTF-8」或者用记事本 / VS Code 打开即可。
 
 **Q：为什么 `+ 添加一组` 会自动填上上一组的重量和次数？**
 

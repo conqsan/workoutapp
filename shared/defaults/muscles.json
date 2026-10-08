@@ -7,7 +7,6 @@
   { "name": "腿", "sortOrder": 6 },
   { "name": "臀", "sortOrder": 7 },
   { "name": "腹", "sortOrder": 8 },
-  { "name": "小腿", "sortOrder": 9 },
-  { "name": "全身", "sortOrder": 10 },
-  { "name": "其他", "sortOrder": 11 }
+  { "name": "全身", "sortOrder": 9 },
+  { "name": "其他", "sortOrder": 10 }
 ]

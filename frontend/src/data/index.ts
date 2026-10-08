@@ -1,5 +1,5 @@
-import { ensureDefaultsSeeded } from './defaults';
 import { createLocalRepository } from './localRepository';
+import { syncDefaultData } from './syncDefaults';
 import type { FitLogRepository } from './types';
 
 /**
@@ -12,10 +12,36 @@ export const repository: FitLogRepository = createLocalRepository();
 
 let readyPromise: Promise<void> | null = null;
 
-/** 第一次使用前调用一次：保证默认的部位 / 动作已经写入本地库 */
+/**
+ * 第一次使用前调用一次。
+ * 除了首次写入，也会把 shared/defaults 的增删同步到本机（详见 syncDefaults.ts）。
+ */
 export function initDataLayer(): Promise<void> {
-  readyPromise ??= ensureDefaultsSeeded();
+  readyPromise ??= syncDefaultData();
   return readyPromise;
 }
+
+/**
+ * 备份 / 恢复用到的纯函数与常量。
+ * UI 只依赖这些，不关心它们背后是 IndexedDB 还是别的实现。
+ */
+export {
+  APP_VERSION,
+  BACKUP_FORMAT,
+  BACKUP_VERSION,
+  countBackup,
+  describeCounts,
+  describeImportResult,
+  parseBackupText,
+  serializeWorkoutSetsCsv,
+  toBackupJson,
+} from './backup';
+export type {
+  BackupCounts,
+  BackupData,
+  BackupSnapshot,
+  ImportResult,
+  ValidationResult,
+} from './backup';
 
 export type * from './types';

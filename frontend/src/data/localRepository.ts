@@ -8,8 +8,19 @@ import {
   request,
   runTransaction,
   Store,
+  type StoreName,
 } from './db';
 import { createId, todayKey } from './ids';
+import {
+  APP_VERSION,
+  BACKUP_FORMAT,
+  BACKUP_VERSION,
+  planImport,
+  type BackupData,
+  type BackupSnapshot,
+  type BackupWorkout,
+  type ImportResult,
+} from './backup';
 import { calculateTotalVolumeKg } from '@/utils/weight';
 import type {
   AddWorkoutExerciseInput,
@@ -74,6 +85,62 @@ async function toDetail(workout: Workout): Promise<WorkoutDetail> {
     totalSets: allSets.length,
     // 混着 kg / lb 的组不能直接相加，先统一换算成 kg
     totalVolume: calculateTotalVolumeKg(allSets),
+  };
+}
+
+/**
+ * 读出全部数据，拼成备份用的形状（训练里嵌动作、动作里嵌组）。
+ *
+ * 和 listWorkouts 一样是「三张表各查一次再在内存里聚合」，不做 N+1。
+ * 导出时按日期升序排 —— 备份文件用文本 diff 看的话，顺序稳定才好比较。
+ */
+async function readBackupData(): Promise<BackupData> {
+  const [muscles, exercises, supplements, supplementRecords, workouts, entries, sets] =
+    await Promise.all([
+      getAll<Muscle>(Store.muscles),
+      getAll<Exercise>(Store.exercises),
+      getAll<Supplement>(Store.supplements),
+      getAll<SupplementRecord>(Store.supplementRecords),
+      getAll<Workout>(Store.workouts),
+      getAll<WorkoutExercise>(Store.workoutExercises),
+      getAll<WorkoutSet>(Store.workoutSets),
+    ]);
+
+  const setsByEntry = new Map<string, WorkoutSet[]>();
+  for (const set of sets) {
+    const bucket = setsByEntry.get(set.workoutExerciseId);
+    if (bucket) bucket.push(set);
+    else setsByEntry.set(set.workoutExerciseId, [set]);
+  }
+
+  const entriesByWorkout = new Map<string, WorkoutExercise[]>();
+  for (const entry of entries) {
+    const bucket = entriesByWorkout.get(entry.workoutId);
+    if (bucket) bucket.push(entry);
+    else entriesByWorkout.set(entry.workoutId, [entry]);
+  }
+
+  const backupWorkouts: BackupWorkout[] = workouts
+    .map((workout) => ({
+      ...workout,
+      exercises: (entriesByWorkout.get(workout.id) ?? [])
+        .slice()
+        .sort((a, b) => a.sortOrder - b.sortOrder)
+        .map((entry) => ({
+          ...entry,
+          sets: (setsByEntry.get(entry.id) ?? []).slice().sort((a, b) => a.setNumber - b.setNumber),
+        })),
+    }))
+    .sort((a, b) => a.date.localeCompare(b.date) || a.startTime.localeCompare(b.startTime));
+
+  return {
+    muscles: muscles.slice().sort(compareMuscles),
+    exercises: exercises.slice().sort((a, b) => a.sortOrder - b.sortOrder),
+    supplements: supplements.slice().sort((a, b) => a.sortOrder - b.sortOrder),
+    supplementRecords: supplementRecords
+      .slice()
+      .sort((a, b) => a.date.localeCompare(b.date) || a.createdAt.localeCompare(b.createdAt)),
+    workouts: backupWorkouts,
   };
 }
 
@@ -220,7 +287,19 @@ export function createLocalRepository(): FitLogRepository {
     // 日期倒序；同一天按录入先后
     filtered.sort((a, b) => b.date.localeCompare(a.date) || a.createdAt.localeCompare(b.createdAt));
 
-    return Promise.all(filtered.map(toRecordView));
+    // 补剂名只查一次再在内存里配对：之前是每条记录查一次库，
+    // 一个月的记录就是几十次独立事务，白白慢在 IO 上
+    const supplements = await getAll<Supplement>(Store.supplements);
+    const supplementById = new Map(supplements.map((item) => [item.id, item]));
+
+    return filtered.map((record) => {
+      const supplement = supplementById.get(record.supplementId);
+      return {
+        ...record,
+        supplementName: supplement?.name ?? '已删除的补剂',
+        isDefault: supplement?.isDefault ?? false,
+      };
+    });
   }
 
   async function addSupplementRecord(
@@ -668,6 +747,56 @@ export function createLocalRepository(): FitLogRepository {
     };
   }
 
+  // -------------------------------------------------------------- 备份与恢复
+
+  async function exportBackup(): Promise<BackupSnapshot> {
+    const data = await readBackupData();
+    return {
+      format: BACKUP_FORMAT,
+      version: BACKUP_VERSION,
+      appVersion: APP_VERSION,
+      exportedAt: nowIso(),
+      data,
+    };
+  }
+
+  /**
+   * 导入 = 合并（不是覆盖）。
+   *
+   * 本机已有的数据一律不动 —— 备份是「找回丢失的数据」，不是「用文件里的版本替换本机」。
+   * 具体要写哪些行由 planImport 算好（纯函数，另有单元测试），这里只负责落库：
+   * 七张表在**同一个事务**里写，中途失败不会留下半截数据。
+   */
+  async function importBackup(snapshot: BackupSnapshot): Promise<ImportResult> {
+    const existing = await readBackupData();
+    const plan = planImport(existing, snapshot.data);
+
+    const rows: Array<readonly [StoreName, readonly unknown[]]> = [
+      [Store.muscles, plan.muscles],
+      [Store.exercises, plan.exercises],
+      [Store.supplements, plan.supplements],
+      [Store.supplementRecords, plan.supplementRecords],
+      [Store.workouts, plan.workouts],
+      [Store.workoutExercises, plan.workoutExercises],
+      [Store.workoutSets, plan.workoutSets],
+    ];
+
+    await runTransaction(
+      rows.map(([storeName]) => storeName),
+      'readwrite',
+      async (tx) => {
+        for (const [storeName, values] of rows) {
+          const store = tx.objectStore(storeName);
+          for (const value of values) {
+            await request(store.put(value));
+          }
+        }
+      },
+    );
+
+    return plan.result;
+  }
+
   return {
     listMuscles,
     listExercises,
@@ -696,5 +825,7 @@ export function createLocalRepository(): FitLogRepository {
     removeSet,
     copyLastWorkout,
     getLastWorkout,
+    exportBackup,
+    importBackup,
   };
 }
