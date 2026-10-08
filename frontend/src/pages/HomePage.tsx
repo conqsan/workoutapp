@@ -1,11 +1,15 @@
 import { useEffect, useState, type ReactElement } from 'react';
 import { Link } from 'react-router-dom';
 import { BackendStatusCard } from '@/components/BackendStatusCard';
+import { DeviceStorageCard } from '@/components/DeviceStorageCard';
 import { StatCard } from '@/components/StatCard';
 import { initDataLayer, repository, type SupplementRecordWithSupplement } from '@/data';
 import { todayKey } from '@/data/ids';
 import { computeTodaySummary, type TodaySummary } from '@/utils/stats';
 import { formatDateLabel, formatVolume } from '@/utils/format';
+
+/** 开发环境才显示后端连接状态：线上没有后端，显示「未连接」会让人以为坏了 */
+const isDev = import.meta.env.DEV;
 
 export function HomePage(): ReactElement {
   const [today, setToday] = useState<TodaySummary | null>(null);
@@ -100,8 +104,8 @@ export function HomePage(): ReactElement {
       </section>
 
       <section className="space-y-2">
-        <h2 className="section-title px-1">系统状态</h2>
-        <BackendStatusCard />
+        <h2 className="section-title px-1">{isDev ? '系统状态' : '数据存储'}</h2>
+        {isDev ? <BackendStatusCard /> : <DeviceStorageCard />}
       </section>
     </div>
   );

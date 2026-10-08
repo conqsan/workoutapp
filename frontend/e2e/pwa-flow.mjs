@@ -85,6 +85,12 @@ async function main() {
     await waitFor(page, 'today-volume', undefined, 20_000);
     check('子路径下 App 能正常打开', true);
 
+    // 线上没有后端，首页不该出现「后端连接：未连接」这种容易误会的东西
+    await waitFor(page, 'storage-status', undefined, 10_000);
+    const homeText = await page.evaluate(() => document.body.innerText.replace(/\s+/g, ' '));
+    check('线上首页显示「数据存储 · 本机」', homeText.includes('数据存储'), homeText.slice(0, 160));
+    check('线上首页不显示「后端连接」', !homeText.includes('后端连接'));
+
     section('[2] PWA 清单与图标');
     const manifestHref = await page.$eval('link[rel="manifest"]', (el) => el.getAttribute('href'));
     check(
