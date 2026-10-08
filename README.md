@@ -565,12 +565,21 @@ git remote add origin https://github.com/<你的用户名>/workoutapp.git
 git push -u origin main
 ```
 
-**3. 等 Actions 跑完（大约 1 分钟）。** 仓库顶部的 **Actions** 标签能看到进度。
-工作流里带了 `enablement: true`，正常情况下它会**自己把 Pages 打开**，你不需要去设置页点任何东西。
-只有万一报 `Get Pages site failed` 时，才需要手动去 Settings → Pages → Source 选 “GitHub Actions”，
-然后重跑一次失败的 job。
+**3. 打开 Pages（必须手动做一次，3 次点击）。**
 
-成功之后站点就在 `https://<你的用户名>.github.io/workoutapp/`。
+仓库 → **Settings** → 左侧 **Pages** → **Build and deployment** →
+**Source** 下拉框选 **GitHub Actions**。
+
+> 这一步**不能省**。通过 API 自动开启 Pages 需要仓库管理员权限，而 Actions 自带的
+> `GITHUB_TOKEN` 没有这个权限 —— 工作流里如果加 `enablement: true`，会直接报
+> `Create Pages site failed. Error: Resource not accessible by integration` 并中断，
+> 所以本仓库刻意没有加它。
+>
+> 如果之前已经跑失败过一次：设好 Source 之后，去 Actions 点进那次失败运行，右上角
+> **Re-run all jobs** 重跑一次即可（不用重新提交代码）。
+
+**4. 等 Actions 变绿（大约 1 分钟）。** 成功之后站点就在
+`https://<你的用户名>.github.io/workoutapp/`。
 
 ### 之后每次更新
 
