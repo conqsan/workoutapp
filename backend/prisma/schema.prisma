@@ -1,0 +1,153 @@
+// FitLog Prisma Schema
+// ---------------------------------------------------------------------------
+// 命名约定：
+//   - TypeScript 侧用 camelCase，数据库侧用 snake_case（通过 @map 映射）
+//   - 表名用复数 snake_case（通过 @@map 映射）
+//
+// 关于日期字段：
+//   - Workout.date / SupplementRecord.date 是「日历日期」，用 'YYYY-MM-DD' 字符串保存。
+//     不用 DateTime 是因为日历日期不是时间点：用 DateTime 存会在时区转换时漂移，
+//     并且按天分组必须做范围查询。字符串既精确又能直接命中索引。
+//   - startTime / endTime 是真正的时刻，仍然用 DateTime。
+//
+// 关于 status：
+//   SQLite 不支持 Prisma enum，所以用 String 保存，取值在应用层用 Zod 约束：
+//   'active' | 'completed'
+// ---------------------------------------------------------------------------
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+/// 训练部位（胸 / 背 / 肩 …），默认 11 项由 seed 初始化
+model Muscle {
+  id        Int      @id @default(autoincrement())
+  name      String   @unique
+  sortOrder Int      @default(0) @map("sort_order")
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  exercises Exercise[]
+
+  @@map("muscles")
+}
+
+/// 训练动作。默认动作 isCustom = false，用户自建动作 isCustom = true。
+/// 同一个动作名可以属于不同部位（例如「双杠臂屈伸」同时存在于胸和三头），
+/// 因此唯一约束是 (muscleId, name) 而不是 name。
+model Exercise {
+  id          Int      @id @default(autoincrement())
+  name        String
+  muscleId    Int      @map("muscle_id")
+  description String?
+  isCustom    Boolean  @default(false) @map("is_custom")
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+
+  muscle           Muscle            @relation(fields: [muscleId], references: [id], onDelete: Restrict)
+  workoutExercises WorkoutExercise[]
+
+  @@unique([muscleId, name])
+  @@index([muscleId])
+  @@map("exercises")
+}
+
+/// 一次训练（一天可以有多次，但正常情况一天一次）
+model Workout {
+  id        Int       @id @default(autoincrement())
+  date      String    @map("date") // 'YYYY-MM-DD'
+  startTime DateTime? @map("start_time")
+  endTime   DateTime? @map("end_time")
+  note      String?
+  status    String    @default("active") // 'active' | 'completed'
+  createdAt DateTime  @default(now()) @map("created_at")
+  updatedAt DateTime  @updatedAt @map("updated_at")
+
+  exercises WorkoutExercise[]
+
+  @@index([date])
+  @@index([status])
+  @@map("workouts")
+}
+
+/// 一次训练里的一个动作（训练 ↔ 动作 的中间表，带自己的顺序与备注）
+model WorkoutExercise {
+  id         Int      @id @default(autoincrement())
+  workoutId  Int      @map("workout_id")
+  exerciseId Int      @map("exercise_id")
+  sortOrder  Int      @default(0) @map("sort_order")
+  note       String?
+  createdAt  DateTime @default(now()) @map("created_at")
+  updatedAt  DateTime @updatedAt @map("updated_at")
+
+  workout  Workout      @relation(fields: [workoutId], references: [id], onDelete: Cascade)
+  exercise Exercise     @relation(fields: [exerciseId], references: [id], onDelete: Restrict)
+  sets     WorkoutSet[]
+
+  @@index([workoutId])
+  @@index([exerciseId])
+  @@map("workout_exercises")
+}
+
+/// 一组训练记录。每组单独一行，绝不把「80kg × 10 × 3组」塞进一个字段。
+/// weight 用 Float：杠铃片最小 0.25kg，而 0.25 的整数倍在二进制浮点里是精确值，
+/// 所以 80.5 / 77.5 / 2.5 都不会出现精度误差。
+model WorkoutSet {
+  id                Int      @id @default(autoincrement())
+  workoutExerciseId Int      @map("workout_exercise_id")
+  setNumber         Int      @map("set_number")
+  weight            Float
+  /// 这一组按哪个单位录入：'kg' | 'lb'。统计时统一换算成 kg。
+  weightUnit        String   @default("kg") @map("weight_unit")
+  reps              Int
+  restSeconds       Int?     @map("rest_seconds")
+  note              String?
+  completed         Boolean  @default(false)
+  createdAt         DateTime @default(now()) @map("created_at")
+  updatedAt         DateTime @updatedAt @map("updated_at")
+
+  workoutExercise WorkoutExercise @relation(fields: [workoutExerciseId], references: [id], onDelete: Cascade)
+
+  @@unique([workoutExerciseId, setNumber])
+  @@index([workoutExerciseId])
+  @@map("workout_sets")
+}
+
+/// 补剂。默认：增肌粉 / 肌酸 / 蛋白粉
+model Supplement {
+  id        Int      @id @default(autoincrement())
+  name      String   @unique
+  unit      String   @default("g")
+  isDefault Boolean  @default(false) @map("is_default")
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  records SupplementRecord[]
+
+  @@map("supplements")
+}
+
+/// 补剂使用记录。consumptionTime 是「训练后 / 早餐」这类场景标签，不是时刻。
+/// 删除补剂时不级联删除记录（onDelete: Restrict），避免误删历史数据。
+model SupplementRecord {
+  id              Int      @id @default(autoincrement())
+  supplementId    Int      @map("supplement_id")
+  date            String   @map("date") // 'YYYY-MM-DD'
+  amount          Float
+  unit            String
+  consumptionTime String?  @map("consumption_time")
+  note            String?
+  createdAt       DateTime @default(now()) @map("created_at")
+  updatedAt       DateTime @updatedAt @map("updated_at")
+
+  supplement Supplement @relation(fields: [supplementId], references: [id], onDelete: Restrict)
+
+  @@index([date])
+  @@index([supplementId])
+  @@map("supplement_records")
+}

@@ -1,0 +1,10 @@
+node_modules
+dist
+build
+coverage
+.npm-cache
+.tmp
+package-lock.json
+*.db
+*.db-journal
+frontend/public

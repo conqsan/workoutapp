@@ -1,0 +1,10 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img" aria-label="FitLog">
+  <rect width="512" height="512" rx="112" fill="#1c62f5" />
+  <g fill="none" stroke="#ffffff" stroke-width="40" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M160 176v160" />
+    <path d="M352 176v160" />
+    <path d="M96 216v80" />
+    <path d="M416 216v80" />
+    <path d="M160 256h192" />
+  </g>
+</svg>

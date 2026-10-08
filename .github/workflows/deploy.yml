@@ -1,0 +1,69 @@
+name: Deploy to GitHub Pages
+
+# 只在 main 分支更新时部署；也可以手动触发
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+# GitHub Pages 需要的权限
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+# 连续推送时只保留最后一次部署
+concurrency:
+  group: pages
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - name: Install dependencies
+        # 部署只用到前端；跳过 Prisma 的 postinstall，省掉下载引擎的时间
+        env:
+          PRISMA_SKIP_POSTINSTALL_GENERATE: 'true'
+        run: npm ci
+
+      - name: Run stats unit tests
+        run: npm run test:stats --workspace frontend
+
+      - name: Build frontend
+        # 项目站部署在 https://<用户名>.github.io/<仓库名>/，静态资源必须带这个前缀
+        env:
+          VITE_BASE_PATH: /${{ github.event.repository.name }}/
+        run: npm run build --workspace frontend
+
+      - name: Setup Pages
+        uses: actions/configure-pages@v5
+        with:
+          # 第一次跑的时候仓库还没开 Pages，这个开关会让它自动开启，
+          # 省掉手动去 Settings 里点一次的步骤
+          enablement: true
+
+      - name: Upload artifact
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: frontend/dist
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4

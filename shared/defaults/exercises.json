@@ -1,0 +1,47 @@
+[
+  { "muscle": "胸", "name": "杠铃卧推" },
+  { "muscle": "胸", "name": "上斜杠铃卧推" },
+  { "muscle": "胸", "name": "下斜杠铃卧推" },
+  { "muscle": "胸", "name": "哑铃卧推" },
+  { "muscle": "胸", "name": "上斜哑铃卧推" },
+  { "muscle": "胸", "name": "下斜哑铃卧推" },
+  { "muscle": "胸", "name": "蝴蝶机夹胸" },
+  { "muscle": "胸", "name": "绳索夹胸" },
+  { "muscle": "胸", "name": "双杠臂屈伸" },
+
+  { "muscle": "背", "name": "引体向上" },
+  { "muscle": "背", "name": "高位下拉" },
+  { "muscle": "背", "name": "杠铃划船" },
+  { "muscle": "背", "name": "T 杠划船" },
+  { "muscle": "背", "name": "坐姿划船" },
+  { "muscle": "背", "name": "单臂哑铃划船" },
+  { "muscle": "背", "name": "直臂下压" },
+
+  { "muscle": "肩", "name": "杠铃肩推" },
+  { "muscle": "肩", "name": "哑铃肩推" },
+  { "muscle": "肩", "name": "哑铃侧平举" },
+  { "muscle": "肩", "name": "哑铃前平举" },
+  { "muscle": "肩", "name": "反向飞鸟" },
+  { "muscle": "肩", "name": "面拉" },
+
+  { "muscle": "二头", "name": "杠铃弯举" },
+  { "muscle": "二头", "name": "哑铃弯举" },
+  { "muscle": "二头", "name": "锤式弯举" },
+  { "muscle": "二头", "name": "牧师椅弯举" },
+  { "muscle": "二头", "name": "绳索弯举" },
+
+  { "muscle": "三头", "name": "绳索下压" },
+  { "muscle": "三头", "name": "仰卧臂屈伸" },
+  { "muscle": "三头", "name": "哑铃颈后臂屈伸" },
+  { "muscle": "三头", "name": "双杠臂屈伸" },
+
+  { "muscle": "腿", "name": "深蹲" },
+  { "muscle": "腿", "name": "哈克深蹲" },
+  { "muscle": "腿", "name": "腿举" },
+  { "muscle": "腿", "name": "腿屈伸" },
+  { "muscle": "腿", "name": "腿弯举" },
+  { "muscle": "腿", "name": "罗马尼亚硬拉" },
+  { "muscle": "腿", "name": "保加利亚分腿蹲" },
+  { "muscle": "腿", "name": "臀推" },
+  { "muscle": "腿", "name": "小腿提踵" }
+]

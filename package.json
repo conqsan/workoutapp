@@ -1,0 +1,36 @@
+{
+  "name": "fitlog",
+  "version": "0.1.0",
+  "private": true,
+  "description": "FitLog - 个人健身记录 PWA（训练 / 补剂 / 历史 / 统计）",
+  "license": "MIT",
+  "engines": {
+    "node": ">=16.13.0"
+  },
+  "workspaces": [
+    "frontend",
+    "backend"
+  ],
+  "scripts": {
+    "dev": "concurrently -n backend,frontend -c magenta,cyan \"npm:dev:backend\" \"npm:dev:frontend\"",
+    "dev:host": "concurrently -n backend,frontend -c magenta,cyan \"npm:dev:backend\" \"npm run dev --workspace frontend -- --host\"",
+    "dev:frontend": "npm run dev --workspace frontend",
+    "dev:backend": "npm run dev --workspace backend",
+    "build": "npm run build --workspace backend && npm run build --workspace frontend",
+    "typecheck": "npm run typecheck --workspace backend && npm run typecheck --workspace frontend",
+    "lint": "npm run lint --workspace backend && npm run lint --workspace frontend",
+    "format": "prettier --write .",
+    "format:check": "prettier --check .",
+    "test": "npm run test --workspace backend && npm run test:stats --workspace frontend",
+    "e2e": "npm run e2e --workspace frontend",
+    "db:generate": "npm run db:generate --workspace backend",
+    "db:push": "npm run db:push --workspace backend",
+    "db:migrate": "npm run db:migrate --workspace backend",
+    "db:studio": "npm run db:studio --workspace backend"
+  },
+  "devDependencies": {
+    "concurrently": "^8.2.2",
+    "prettier": "^3.3.3",
+    "puppeteer-core": "^21.11.0"
+  }
+}

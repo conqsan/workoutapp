@@ -1,0 +1,13 @@
+[
+  { "name": "胸", "sortOrder": 1 },
+  { "name": "背", "sortOrder": 2 },
+  { "name": "肩", "sortOrder": 3 },
+  { "name": "二头", "sortOrder": 4 },
+  { "name": "三头", "sortOrder": 5 },
+  { "name": "腿", "sortOrder": 6 },
+  { "name": "臀", "sortOrder": 7 },
+  { "name": "腹", "sortOrder": 8 },
+  { "name": "小腿", "sortOrder": 9 },
+  { "name": "全身", "sortOrder": 10 },
+  { "name": "其他", "sortOrder": 11 }
+]

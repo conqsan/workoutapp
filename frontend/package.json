@@ -1,0 +1,49 @@
+{
+  "name": "fitlog-frontend",
+  "version": "0.1.0",
+  "private": true,
+  "description": "FitLog 前端（React + TypeScript + Vite + Tailwind CSS，Mobile First PWA）",
+  "type": "module",
+  "engines": {
+    "node": ">=16.13.0"
+  },
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc -p tsconfig.json --noEmit && vite build",
+    "preview": "vite preview",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "lint": "eslint \"src/**/*.{ts,tsx}\"",
+    "lint:fix": "eslint \"src/**/*.{ts,tsx}\" --fix",
+    "format": "prettier --write \"src/**/*.{ts,tsx,css}\" \"e2e/**/*.mjs\" \"scripts/**/*.ts\"",
+    "test:stats": "tsx scripts/stats-test.ts",
+    "e2e": "node e2e/workout-flow.mjs && node e2e/supplements-flow.mjs && node e2e/history-flow.mjs && node e2e/stats-flow.mjs && node e2e/viewport-flow.mjs && node e2e/pwa-flow.mjs",
+    "e2e:workout": "node e2e/workout-flow.mjs",
+    "e2e:supplements": "node e2e/supplements-flow.mjs",
+    "e2e:history": "node e2e/history-flow.mjs",
+    "e2e:stats": "node e2e/stats-flow.mjs",
+    "e2e:viewport": "node e2e/viewport-flow.mjs",
+    "e2e:pwa": "node e2e/pwa-flow.mjs"
+  },
+  "dependencies": {
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1",
+    "react-router-dom": "^6.26.2",
+    "recharts": "^2.12.7"
+  },
+  "devDependencies": {
+    "@types/node": "^20.16.11",
+    "@types/react": "^18.3.11",
+    "@types/react-dom": "^18.3.1",
+    "@typescript-eslint/eslint-plugin": "^7.18.0",
+    "@typescript-eslint/parser": "^7.18.0",
+    "@vitejs/plugin-react": "^4.2.1",
+    "autoprefixer": "^10.4.20",
+    "eslint": "^8.57.0",
+    "eslint-plugin-react-hooks": "^4.6.2",
+    "eslint-plugin-react-refresh": "^0.4.14",
+    "postcss": "^8.4.47",
+    "tailwindcss": "^3.4.13",
+    "typescript": "^5.4.5",
+    "vite": "^4.5.5"
+  }
+}

@@ -1,0 +1,69 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    color-scheme: light;
+  }
+
+  html,
+  body,
+  #root {
+    height: 100%;
+  }
+
+  html {
+    /* 固定底部导航会盖住视口底部；键盘弹出时更明显。
+       设了 scroll-padding 之后，scrollIntoView / 聚焦输入框时不会被挡住。 */
+    scroll-padding-bottom: 96px;
+  }
+
+  body {
+    @apply bg-slate-50 text-slate-900 antialiased;
+    -webkit-tap-highlight-color: transparent;
+    /* 避免移动端整页回弹导致底部导航跟着抖动 */
+    overscroll-behavior-y: none;
+  }
+
+  #root {
+    @apply flex min-h-full flex-col;
+  }
+
+  /* 移动端输入框在 iOS 上会因字号 < 16px 而自动放大页面 */
+  input,
+  select,
+  textarea {
+    font-size: 16px;
+  }
+
+  button {
+    font: inherit;
+  }
+}
+
+@layer components {
+  .card {
+    @apply rounded-2xl bg-white p-4 shadow-sm ring-1 ring-slate-200/70;
+  }
+
+  .btn {
+    @apply inline-flex min-h-touch select-none items-center justify-center gap-2 rounded-xl px-4 text-base font-semibold transition active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-50;
+  }
+
+  .btn-primary {
+    @apply bg-brand-600 text-white hover:bg-brand-700;
+  }
+
+  .btn-secondary {
+    @apply bg-white text-slate-700 ring-1 ring-slate-200 hover:bg-slate-50;
+  }
+
+  .field {
+    @apply min-h-touch w-full rounded-xl border-0 bg-slate-100 px-4 text-base text-slate-900 ring-1 ring-inset ring-slate-200 placeholder:text-slate-400 focus:ring-2 focus:ring-inset focus:ring-brand-500;
+  }
+
+  .section-title {
+    @apply text-sm font-semibold text-slate-500;
+  }
+}

@@ -1,0 +1,11 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img" aria-label="FitLog">
+  <!-- maskable 版本：背景铺满（不要圆角），图形收在中间 80% 的安全区内 -->
+  <rect width="512" height="512" fill="#1c62f5" />
+  <g fill="none" stroke="#ffffff" stroke-width="32" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M186 200v112" />
+    <path d="M326 200v112" />
+    <path d="M138 232v48" />
+    <path d="M374 232v48" />
+    <path d="M186 256h140" />
+  </g>
+</svg>
