@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactElement } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { DateField } from '@/components/DateField';
 import { ExercisePicker } from '@/components/workout/ExercisePicker';
 import { WorkoutExerciseCard } from '@/components/workout/WorkoutExerciseCard';
 import {
@@ -12,7 +13,7 @@ import {
 } from '@/data';
 import { todayKey } from '@/data/ids';
 import { useWorkout } from '@/hooks/useWorkout';
-import { formatDateKeyLabel, formatDateLabel, formatVolume } from '@/utils/format';
+import { formatDateLabel, formatVolume } from '@/utils/format';
 import { formatWeight } from '@/utils/weight';
 
 export function WorkoutPage(): ReactElement {
@@ -192,20 +193,12 @@ export function WorkoutPage(): ReactElement {
             <span className="mb-1 block text-[11px] font-medium text-slate-500">
               训练日期（要补记以前某天的训练就改这里）
             </span>
-            <input
-              type="date"
+            <DateField
               value={startDate}
-              data-testid="start-date"
-              onChange={(event) => setStartDate(event.target.value || todayKey())}
-              className="field block h-12 w-full min-w-0 max-w-full text-center text-base"
+              testId="start-date"
+              ariaLabel="训练日期"
+              onChange={(next) => setStartDate(next || todayKey())}
             />
-            {/* 原生日期控件在手机上各家长得都不一样，所以把选中的日期再用文字说一遍 */}
-            <span
-              className="mt-1 block text-center text-xs text-slate-400"
-              data-testid="start-date-label"
-            >
-              已选：{formatDateKeyLabel(startDate)}
-            </span>
           </label>
 
           <button

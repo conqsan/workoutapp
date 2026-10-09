@@ -215,8 +215,8 @@ async function main() {
         }
 
         if (target.path === '/supplements') {
-          const dateBox = await measureDateInput(page, 'record-date');
-          check('补剂：日期框没有横向超出屏幕', dateBoxFits(dateBox), dateBox);
+          const dateDisplay = await measureDateInput(page, 'record-date-display');
+          check('补剂：日期框没有横向超出屏幕', dateBoxFits(dateDisplay), dateDisplay);
         }
       }
 
@@ -237,12 +237,18 @@ async function main() {
         );
       }
 
-      const startDateBox = await measureDateInput(page, 'start-date');
-      check('训练页：日期框没有横向超出屏幕', dateBoxFits(startDateBox), startDateBox);
+      // 日期框是重点：原生 input 只负责点开选择器，外观由我们自己的 DIV 画
+      const startDateInput = await measureDateInput(page, 'start-date');
+      const startDateDisplay = await measureDateInput(page, 'start-date-display');
+      check('训练页：日期框没有横向超出屏幕', dateBoxFits(startDateDisplay), startDateDisplay);
+      check('训练页：日期框的可点区域也在屏幕内', dateBoxFits(startDateInput), startDateInput);
       check(
-        '训练页：日期框允许收缩（min-width: 0）',
-        startDateBox?.minWidth === '0px',
-        startDateBox,
+        '训练页：日期输入层与显示层严丝合缝（原生控件不再决定宽度）',
+        startDateInput !== null &&
+          startDateDisplay !== null &&
+          Math.abs(startDateInput.left - startDateDisplay.left) <= 1 &&
+          Math.abs(startDateInput.right - startDateDisplay.right) <= 1,
+        { input: startDateInput, display: startDateDisplay },
       );
 
       // 想逐个人眼确认布局就设 E2E_SCREENSHOT_VIEWPORT=<目录>

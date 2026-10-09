@@ -37,9 +37,8 @@
     font-size: 16px;
   }
 
-  /* 手机端原生日期控件自带内在宽度：中文 locale 下「2026/10/08」加上右边的日历图标很容易
-     比容器还宽，表现出来就是日期框横向顶出屏幕、或者里面的文字被挤掉。
-     允许它和它内部的日期分区一起收缩，就正常了（min-width: auto 是罪魁祸首）。 */
+  /* 手机端原生日期控件自带内在宽度：中文 locale 下「2026年10月9日」加上右边的日历图标
+     很容易比容器还宽，表现出来就是日期框横向顶出屏幕。这里能收缩就收缩。 */
   input[type='date'] {
     min-width: 0;
     max-width: 100%;
@@ -50,9 +49,19 @@
     padding: 0;
   }
 
-  input[type='date']::-webkit-calendar-picker-indicator {
-    margin-inline-start: 0;
+  /* 上面那条只是「能收缩」，但有的内核照样不认。所以 DateField 里的原生 input 只负责
+     「点开系统选择器」：绝对定位铺满容器、完全透明；真正的样子由我们自己画的 DIV 呈现
+     （见 components/DateField.tsx）。选中的日期、日历图标都不会再撑破布局。
+     下面这条让整块区域都能点开选择器，而不是只有右边那个小图标。 */
+  .date-field-native::-webkit-calendar-picker-indicator {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    margin: 0;
     padding: 0;
+    opacity: 0;
+    cursor: pointer;
   }
 
   button {

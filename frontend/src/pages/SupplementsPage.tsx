@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useState, type ReactElement } from 'react';
+import { DateField } from '@/components/DateField';
 import { SupplementRecordRow } from '@/components/supplements/SupplementRecordRow';
 import { initDataLayer, repository } from '@/data';
 import { todayKey } from '@/data/ids';
@@ -142,12 +143,12 @@ export function SupplementsPage(): ReactElement {
                 回到今天
               </button>
             )}
-            <input
-              type="date"
+            <DateField
               value={date}
-              onChange={(event) => setDate(event.target.value || todayKey())}
-              data-testid="record-date"
-              className="h-9 min-w-0 max-w-full rounded-lg bg-slate-100 px-2 text-sm text-slate-700 ring-1 ring-inset ring-slate-200"
+              size="sm"
+              testId="record-date"
+              ariaLabel="补剂日期"
+              onChange={(next) => setDate(next || todayKey())}
             />
           </div>
         </div>

@@ -125,6 +125,14 @@ export interface WorkoutSetInput {
 
 export type WorkoutSetPatch = Partial<WorkoutSetInput>;
 
+/** 修改一次训练（历史记录里的「修改」用） */
+export interface UpdateWorkoutInput {
+  /** 'YYYY-MM-DD'；不传就保持原样 */
+  date?: string;
+  /** 不传就保持原样 */
+  note?: string;
+}
+
 export interface CreateExerciseInput {
   name: string;
   muscleId: string;
@@ -220,6 +228,8 @@ export interface FitLogRepository {
   startWorkout(input?: StartWorkoutInput): Promise<WorkoutDetail>;
   getWorkout(id: string): Promise<WorkoutDetail | null>;
   updateWorkoutNote(id: string, note: string): Promise<WorkoutDetail>;
+  /** 改训练的日期 / 备注（历史记录详情页用） */
+  updateWorkout(id: string, patch: UpdateWorkoutInput): Promise<WorkoutDetail>;
   deleteWorkout(id: string): Promise<void>;
   completeWorkout(id: string): Promise<WorkoutDetail>;
 

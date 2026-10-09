@@ -1,6 +1,12 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { initDataLayer, repository } from '@/data';
-import type { SupplementRecordWithSupplement, WorkoutDetail, WorkoutSummary } from '@/data';
+import type {
+  SupplementRecordWithSupplement,
+  UpdateWorkoutInput,
+  WorkoutDetail,
+  WorkoutSetPatch,
+  WorkoutSummary,
+} from '@/data';
 
 export interface UseHistoryResult {
   loading: boolean;
@@ -61,6 +67,13 @@ export interface UseHistoryDetailResult {
   supplements: SupplementRecordWithSupplement[];
   error: string | null;
   removing: boolean;
+  saving: boolean;
+  /** 改这次训练的日期 / 备注 */
+  update: (patch: UpdateWorkoutInput) => Promise<void>;
+  /** 改某一组（重量 / 次数 / 休息） */
+  updateSet: (setId: string, patch: WorkoutSetPatch) => Promise<void>;
+  /** 删掉某一组（剩下的组号会自动压成 1..n） */
+  removeSet: (setId: string) => Promise<void>;
   /** 删掉这次训练；成功返回 true（页面据此返回列表），失败返回 false 并给出提示 */
   remove: () => Promise<boolean>;
 }
@@ -72,6 +85,15 @@ export function useHistoryDetail(id: string | undefined): UseHistoryDetailResult
   const [supplements, setSupplements] = useState<SupplementRecordWithSupplement[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [removing, setRemoving] = useState(false);
+  const [saving, setSaving] = useState(false);
+
+  const mountedRef = useRef(true);
+  useEffect(() => {
+    mountedRef.current = true;
+    return () => {
+      mountedRef.current = false;
+    };
+  }, []);
 
   useEffect(() => {
     if (id === undefined || id === '') {
@@ -126,5 +148,61 @@ export function useHistoryDetail(id: string | undefined): UseHistoryDetailResult
     }
   }, [id]);
 
-  return { loading, workout, supplements, error, removing, remove };
+  /**
+   * 改完就地重读一次详情：训练总量、组数这些派生值都由数据层算好，页面不自己拼状态。
+   */
+  const run = useCallback(
+    async (action: () => Promise<unknown>): Promise<void> => {
+      if (id === undefined || id === '') return;
+
+      setSaving(true);
+      setError(null);
+      try {
+        await action();
+        const detail = await repository.getWorkout(id);
+        if (mountedRef.current) setWorkout(detail);
+      } catch (caught) {
+        if (mountedRef.current) {
+          setError(caught instanceof Error ? caught.message : '保存失败，请重试。');
+        }
+      } finally {
+        if (mountedRef.current) setSaving(false);
+      }
+    },
+    [id],
+  );
+
+  const update = useCallback(
+    async (patch: UpdateWorkoutInput): Promise<void> => {
+      await run(() => repository.updateWorkout(id ?? '', patch));
+    },
+    [id, run],
+  );
+
+  const updateSet = useCallback(
+    async (setId: string, patch: WorkoutSetPatch): Promise<void> => {
+      await run(() => repository.updateSet(setId, patch));
+    },
+    [run],
+  );
+
+  const removeSet = useCallback(
+    async (setId: string): Promise<void> => {
+      await run(() => repository.removeSet(setId));
+    },
+    [run],
+  );
+
+  return {
+    loading,
+    workout,
+    supplements,
+    error,
+    removing,
+    saving,
+    update,
+    updateSet,
+    removeSet,
+    remove,
+  };
 }

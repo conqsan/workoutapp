@@ -251,7 +251,61 @@ async function main() {
       remainingText,
     );
 
-    section('[10] 页面没有 JS 报错');
+    section('[10] 修改历史记录：日期、备注、某一组');
+    await page.goto(`${BASE_URL}/history`, { waitUntil: 'domcontentloaded' });
+    await waitFor(page, 'history-item', undefined, 10_000);
+    await clickWhenReady(await itemByDate(page, '2026-10-06'));
+    await waitFor(page, 'history-exercise', undefined, 10_000);
+
+    await clickWhenReady(await waitFor(page, 'edit-workout'));
+    await fillInput(await waitFor(page, 'edit-workout-date'), '2026-10-05');
+    await fillInput(await waitFor(page, 'edit-workout-note'), '重量记错了，改一下');
+    await clickWhenReady(await waitFor(page, 'save-workout'));
+
+    check(
+      '保存后编辑区自动收起',
+      await waitUntil(async () => (await page.$('[data-testid="workout-editor"]')) === null),
+    );
+    const editedText = (await page.evaluate(() => document.body.innerText)).replace(/\s+/g, ' ');
+    check(
+      '日期改成了 2026年10月5日',
+      editedText.includes('2026年10月5日'),
+      editedText.slice(0, 120),
+    );
+    check('训练备注保存成功', editedText.includes('重量记错了'), editedText.slice(0, 200));
+
+    const setRow = await waitFor(page, 'history-set');
+    await clickWhenReady(await setRow.$('[data-testid="edit-set"]'));
+    await fillInput(await waitFor(page, 'edit-set-weight'), '105');
+    await clickWhenReady(await waitFor(page, 'save-set'));
+
+    check(
+      '这一组改成 105kg × 5',
+      await waitUntil(async () =>
+        (await page.evaluate(() => document.body.innerText)).includes('105kg × 5'),
+      ),
+    );
+    check(
+      '训练总量跟着重算成 525 kg（105 × 5）',
+      await waitUntil(async () =>
+        (await page.evaluate(() => document.body.innerText)).includes('525 kg'),
+      ),
+    );
+
+    await page.goto(`${BASE_URL}/history`, { waitUntil: 'domcontentloaded' });
+    await waitFor(page, 'history-item', undefined, 10_000);
+    check(
+      '列表里出现了改后的 10/5',
+      await waitUntil(async () => (await historyDates(page)).includes('2026-10-05')),
+      await historyDates(page),
+    );
+    check(
+      '原来的 10/6 不再出现',
+      !(await historyDates(page)).includes('2026-10-06'),
+      await historyDates(page),
+    );
+
+    section('[11] 页面没有 JS 报错');
     check('控制台无报错', pageErrors.length === 0, pageErrors.slice(0, 3));
   } finally {
     await cleanup();

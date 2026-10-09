@@ -31,7 +31,7 @@ let dbPromise: Promise<IDBDatabase> | null = null;
 export function openDatabase(): Promise<IDBDatabase> {
   dbPromise ??= new Promise<IDBDatabase>((resolve, reject) => {
     if (typeof indexedDB === 'undefined') {
-      reject(new Error('当前环境不支持 IndexedDB，无法在本地保存数据。'));
+      reject(new Error('这个浏览器不支持本地存储，无法保存数据。'));
       return;
     }
 

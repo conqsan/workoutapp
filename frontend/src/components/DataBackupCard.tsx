@@ -173,8 +173,7 @@ export function DataBackupCard(): ReactElement {
       </div>
 
       <p className="text-sm leading-relaxed text-slate-600">
-        训练和补剂都存在这台设备的 IndexedDB
-        里，不依赖服务器。换手机、换浏览器或者清理站点数据都会丢， 所以{' '}
+        训练和补剂都存在这台设备上，不依赖服务器。换手机、换浏览器或者清理站点数据都会丢，所以{' '}
         <span className="font-medium text-slate-800">导出 JSON 是唯一能完整找回数据的办法</span>
         ，建议隔一段时间导出一份。
       </p>

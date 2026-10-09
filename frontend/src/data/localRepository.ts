@@ -37,6 +37,7 @@ import type {
   SupplementRecordPatch,
   SupplementRecordWithSupplement,
   Workout,
+  UpdateWorkoutInput,
   WorkoutSummary,
   WorkoutDetail,
   WorkoutExercise,
@@ -470,11 +471,29 @@ export function createLocalRepository(): FitLogRepository {
     return toDetail(workout);
   }
 
-  async function updateWorkoutNote(id: string, note: string): Promise<WorkoutDetail> {
+  /**
+   * 改训练的日期 / 备注。
+   * 训练里的动作与组不动 —— 那些是「记录」，日期只是这张记录的标签。
+   */
+  async function updateWorkout(id: string, patch: UpdateWorkoutInput): Promise<WorkoutDetail> {
     const workout = await requireWorkout(id);
-    const updated: Workout = { ...workout, note, updatedAt: nowIso() };
+    const date = patch.date ?? workout.date;
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) {
+      throw new Error('日期格式不对，应该是 2026-10-09 这样。');
+    }
+
+    const updated: Workout = {
+      ...workout,
+      date,
+      note: patch.note === undefined ? workout.note : patch.note,
+      updatedAt: nowIso(),
+    };
     await put(Store.workouts, updated);
     return toDetail(updated);
+  }
+
+  async function updateWorkoutNote(id: string, note: string): Promise<WorkoutDetail> {
+    return updateWorkout(id, { note });
   }
 
   async function deleteWorkout(id: string): Promise<void> {
@@ -823,6 +842,7 @@ export function createLocalRepository(): FitLogRepository {
     startWorkout,
     getWorkout,
     updateWorkoutNote,
+    updateWorkout,
     deleteWorkout,
     completeWorkout,
     addWorkoutExercise,

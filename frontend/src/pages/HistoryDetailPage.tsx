@@ -1,15 +1,43 @@
 import { useState, type ReactElement } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
+import { DateField } from '@/components/DateField';
+import { HistorySetRow } from '@/components/history/HistorySetRow';
 import { useHistoryDetail } from '@/hooks/useHistory';
 import { formatDateKeyLabel, formatVolume } from '@/utils/format';
-import { formatWeight } from '@/utils/weight';
+import { calculateTotalVolumeKg } from '@/utils/weight';
 
 export function HistoryDetailPage(): ReactElement {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
-  const { loading, workout, supplements, error, removing, remove } = useHistoryDetail(id);
+  const {
+    loading,
+    workout,
+    supplements,
+    error,
+    removing,
+    saving,
+    update,
+    updateSet,
+    removeSet,
+    remove,
+  } = useHistoryDetail(id);
   /** 删除不可撤销，所以点一次只是展开确认 */
   const [confirmDelete, setConfirmDelete] = useState(false);
+  /** 「修改这次训练」：日期与备注 */
+  const [editingWorkout, setEditingWorkout] = useState(false);
+  const [draftDate, setDraftDate] = useState('');
+  const [draftNote, setDraftNote] = useState('');
+
+  const startEditing = (): void => {
+    setDraftDate(workout?.date ?? '');
+    setDraftNote(workout?.note ?? '');
+    setEditingWorkout(true);
+  };
+
+  const saveWorkout = async (): Promise<void> => {
+    await update({ date: draftDate, note: draftNote });
+    setEditingWorkout(false);
+  };
 
   const handleDelete = async (): Promise<void> => {
     const deleted = await remove();
@@ -20,7 +48,7 @@ export function HistoryDetailPage(): ReactElement {
     return <div className="h-40 animate-pulse rounded-2xl bg-slate-200/70" />;
   }
 
-  if (error || !workout) {
+  if (!workout) {
     return (
       <section className="card space-y-3 text-center">
         <p className="text-sm text-slate-600">{error ?? '找不到这次训练。'}</p>
@@ -37,13 +65,74 @@ export function HistoryDetailPage(): ReactElement {
 
   return (
     <div className="space-y-4">
+      {/* 修改失败之类的情况：留在这一页上提示，不要把已经加载好的详情页顶掉 */}
+      {error ? (
+        <div className="rounded-xl bg-rose-50 px-3 py-2 text-sm text-rose-700">{error}</div>
+      ) : null}
+
       <section className="card space-y-3">
-        <div>
-          <p className="text-sm text-slate-500">{formatDateKeyLabel(workout.date)}</p>
-          <p className="mt-1 text-xl font-bold text-slate-900">
-            {muscleNames.length > 0 ? muscleNames.join(' + ') : '未记录部位'}
-          </p>
+        <div className="flex items-start justify-between gap-2">
+          <div className="min-w-0">
+            <p className="text-sm text-slate-500">{formatDateKeyLabel(workout.date)}</p>
+            <p className="mt-1 text-xl font-bold text-slate-900">
+              {muscleNames.length > 0 ? muscleNames.join(' + ') : '未记录部位'}
+            </p>
+          </div>
+          {editingWorkout ? null : (
+            <button
+              type="button"
+              disabled={saving}
+              onClick={startEditing}
+              data-testid="edit-workout"
+              className="min-h-[36px] shrink-0 rounded-lg px-3 text-xs font-medium text-brand-600 ring-1 ring-brand-200 disabled:opacity-50"
+            >
+              修改
+            </button>
+          )}
         </div>
+
+        {editingWorkout ? (
+          <div className="space-y-3 rounded-xl bg-slate-50 p-3" data-testid="workout-editor">
+            <label className="block min-w-0">
+              <span className="mb-1 block text-[11px] font-medium text-slate-500">训练日期</span>
+              <DateField
+                value={draftDate}
+                testId="edit-workout-date"
+                ariaLabel="训练日期"
+                onChange={setDraftDate}
+              />
+            </label>
+            <label className="block">
+              <span className="mb-1 block text-[11px] font-medium text-slate-500">训练备注</span>
+              <input
+                type="text"
+                value={draftNote}
+                data-testid="edit-workout-note"
+                placeholder="今天的状态、感受…（可留空）"
+                onChange={(event) => setDraftNote(event.target.value)}
+                className="field h-11 text-sm"
+              />
+            </label>
+            <div className="flex gap-2">
+              <button
+                type="button"
+                disabled={saving}
+                onClick={() => void saveWorkout()}
+                data-testid="save-workout"
+                className="btn btn-primary h-11 flex-1 text-sm"
+              >
+                保存
+              </button>
+              <button
+                type="button"
+                onClick={() => setEditingWorkout(false)}
+                className="btn btn-secondary h-11 text-sm"
+              >
+                取消
+              </button>
+            </div>
+          </div>
+        ) : null}
 
         <dl className="grid grid-cols-3 gap-3">
           <Stat label="动作" value={`${workout.exercises.length} 个`} />
@@ -65,7 +154,8 @@ export function HistoryDetailPage(): ReactElement {
       </section>
 
       {workout.exercises.map((entry, index) => {
-        const volume = entry.sets.reduce((total, set) => total + set.weight * set.reps, 0);
+        // 每组都换算成 kg 再累加：混着 kg / lb 的组直接相加是没有意义的
+        const volume = calculateTotalVolumeKg(entry.sets);
 
         return (
           <section
@@ -95,19 +185,13 @@ export function HistoryDetailPage(): ReactElement {
 
             <ul className="space-y-1">
               {entry.sets.map((set) => (
-                <li
+                <HistorySetRow
                   key={set.id}
-                  className="flex items-center justify-between rounded-lg bg-slate-50 px-3 py-1.5 text-sm"
-                  data-testid="history-set"
-                >
-                  <span className="text-slate-500">第 {set.setNumber} 组</span>
-                  <span className="font-medium text-slate-800">
-                    {formatWeight(set.weight, set.weightUnit)} × {set.reps}
-                  </span>
-                  <span className="text-xs text-slate-400">
-                    {set.restSeconds === null ? '—' : `休息 ${set.restSeconds}s`}
-                  </span>
-                </li>
+                  set={set}
+                  disabled={saving}
+                  onUpdate={(setId, patch) => void updateSet(setId, patch)}
+                  onRemove={(setId) => void removeSet(setId)}
+                />
               ))}
             </ul>
 
