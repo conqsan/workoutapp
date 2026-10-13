@@ -122,7 +122,27 @@ async function main(): Promise<void> {
   const exercises = exerciseRes.json<SuccessBody<ExerciseDto[]>>();
 
   check('HTTP 200', exerciseRes.statusCode === 200, exerciseRes.statusCode);
-  check('默认动作已 seed（46 个）', exercises.data?.length === 46, exercises.data?.length);
+  check('默认动作已 seed（51 个）', exercises.data?.length === 51, exercises.data?.length);
+  check(
+    '新增的腿部动作都在（站姿倒蹬腿 / 坐姿蹬腿 / 坐姿髋内收 / 坐姿髋外展）',
+    ['站姿倒蹬腿', '坐姿蹬腿', '坐姿髋内收', '坐姿髋外展'].every((name) =>
+      (exercises.data ?? []).some((e) => e.name === name && e.muscle.name === '腿'),
+    ),
+    (exercises.data ?? []).filter((e) => e.muscle.name === '腿').map((e) => e.name),
+  );
+  check(
+    '肩部新增「飞鸟递减组」且带 3 个重量框',
+    (exercises.data ?? []).some(
+      (e) => e.name === '飞鸟递减组' && e.muscle.name === '肩' && e.weightSlots === 3,
+    ),
+    (exercises.data ?? []).find((e) => e.name === '飞鸟递减组'),
+  );
+  check(
+    '普通动作的重量框是 1 个',
+    (exercises.data ?? []).every((e) => e.weightSlots >= 1) &&
+      (exercises.data ?? []).filter((e) => e.weightSlots === 3).length === 1,
+    (exercises.data ?? []).filter((e) => e.weightSlots !== 1).map((e) => [e.name, e.weightSlots]),
+  );
   check(
     '包含「胸 / 杠铃卧推」',
     (exercises.data ?? []).some((e) => e.name === '杠铃卧推' && e.muscle.name === '胸'),
@@ -610,6 +630,70 @@ async function main(): Promise<void> {
     '删掉这两组后总量回到 3095',
     Math.abs((restored?.totalVolume ?? 0) - 3095) < 0.01,
     restored?.totalVolume,
+  );
+
+  section('[15.5] 递减组（drop set）的重量段');
+  const dropSetRes = await app.inject({
+    method: 'POST',
+    url: `/api/workout-exercises/${benchForUnit?.id ?? 0}/sets`,
+    payload: { weight: 20, dropWeights: [15, 10], dropReps: [8, 6], reps: 10 },
+  });
+  const dropSet = dropSetRes
+    .json<SuccessBody<WorkoutDto>>()
+    .data?.exercises.find((e) => e.exercise.name === '杠铃卧推')
+    ?.sets.at(-1);
+
+  check('带递减段的一组 -> 201', dropSetRes.statusCode === 201, dropSetRes.statusCode);
+  check(
+    '后续段原样保存 [15, 10]',
+    JSON.stringify(dropSet?.dropWeights) === JSON.stringify([15, 10]),
+    dropSet?.dropWeights,
+  );
+  check(
+    '后续段各自的次数也保存了 [8, 6]',
+    JSON.stringify(dropSet?.dropReps) === JSON.stringify([8, 6]),
+    dropSet?.dropReps,
+  );
+  check('第一段仍在 weight 里', dropSet?.weight === 20, dropSet);
+  check(
+    '训练总量按每段自己的次数累加（3095 + 20×10 + 15×8 + 10×6 = 3535）',
+    Math.abs(
+      (dropSetRes.json<SuccessBody<WorkoutDto>>().data?.totalVolume ?? 0) -
+        (3095 + 20 * 10 + 15 * 8 + 10 * 6),
+    ) < 0.01,
+    dropSetRes.json<SuccessBody<WorkoutDto>>().data?.totalVolume,
+  );
+  check(
+    '普通动作不带递减段（dropWeights 是空数组）',
+    Array.isArray(dropSet?.dropWeights) &&
+      (afterLb?.exercises ?? [])
+        .flatMap((e) => e.sets)
+        .every((set) => Array.isArray(set.dropWeights)),
+    dropSet?.dropWeights,
+  );
+
+  const tooManyDropsRes = await app.inject({
+    method: 'POST',
+    url: `/api/workout-exercises/${benchForUnit?.id ?? 0}/sets`,
+    payload: { weight: 20, dropWeights: [15, 10, 5, 2], reps: 10 },
+  });
+  check('递减段超过 2 个 -> 422', tooManyDropsRes.statusCode === 422, tooManyDropsRes.statusCode);
+
+  const badDropRepsRes = await app.inject({
+    method: 'POST',
+    url: `/api/workout-exercises/${benchForUnit?.id ?? 0}/sets`,
+    payload: { weight: 20, dropWeights: [15], dropReps: [0], reps: 10 },
+  });
+  check('递减段次数是 0 -> 422', badDropRepsRes.statusCode === 422, badDropRepsRes.statusCode);
+
+  // 把这一组也删掉，恢复后面断言依赖的状态
+  const afterDropCleanup = (
+    await app.inject({ method: 'DELETE', url: `/api/sets/${dropSet?.id ?? 0}` })
+  ).json<SuccessBody<WorkoutDto>>().data;
+  check(
+    '删掉递减组后总量回到 3095',
+    Math.abs((afterDropCleanup?.totalVolume ?? 0) - 3095) < 0.01,
+    afterDropCleanup?.totalVolume,
   );
 
   section('[16] 调整动作顺序 / 删除动作');

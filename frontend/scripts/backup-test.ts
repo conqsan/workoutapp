@@ -87,6 +87,8 @@ function makeSnapshot(): BackupSnapshot {
             workoutExerciseId: 'we1',
             setNumber: 2,
             weight: 75,
+            dropWeights: [15],
+            dropReps: [8],
             weightUnit: 'kg',
             reps: 8,
             restSeconds: null,
@@ -222,6 +224,42 @@ function makeWorkoutDetail(): WorkoutDetail {
   };
 }
 
+/** 递减组：一组三段（20 / 15 / 10 kg，各 10 次） */
+function makeDropWorkoutDetail(): WorkoutDetail {
+  const detail = makeWorkoutDetail();
+  const entry = detail.exercises[0];
+  if (!entry) throw new Error('测试夹具缺动作');
+
+  return {
+    ...detail,
+    exercises: [
+      {
+        ...entry,
+        exerciseName: '飞鸟递减组',
+        muscleName: '肩',
+        sets: [
+          {
+            id: 'd1',
+            workoutExerciseId: entry.id,
+            setNumber: 1,
+            weight: 20,
+            dropWeights: [15, 10],
+            dropReps: [8, 6],
+            weightUnit: 'kg',
+            reps: 10,
+            restSeconds: null,
+            note: '',
+            completed: true,
+            createdAt: CREATED_AT,
+          },
+        ],
+      },
+    ],
+    totalSets: 1,
+    totalVolume: 450,
+  };
+}
+
 function main(): void {
   const snapshot = makeSnapshot();
 
@@ -328,22 +366,53 @@ function main(): void {
   const lines = csv.split('\r\n');
   check('前置 BOM（Excel 打开中文不乱码）', csv.startsWith('\ufeff'));
   check(
-    '第一行是表头',
-    lines[0]?.includes('训练日期') === true && lines[0]?.includes('本组训练量(kg)') === true,
+    '第一行是表头（含「段」列）',
+    lines[0]?.includes('训练日期') === true &&
+      lines[0]?.includes('段') === true &&
+      lines[0]?.includes('本段训练量(kg)') === true,
     lines[0],
   );
   check(
-    '一行 = 一组（表头 + 2 行）',
+    '一行 = 一组的一段（表头 + 2 行）',
     lines.filter((line) => line !== '').length === 3,
     lines.length,
   );
-  check('kg 组按原值输出', lines[1]?.includes(',80,kg,10,90,800,') === true, lines[1]);
+  check(
+    'kg 组按原值输出（组号 1、段 1）',
+    lines[1]?.includes(',1,1,80,kg,10,90,800,') === true,
+    lines[1],
+  );
   check('lb 组换算成 kg：100lb × 5 = 226.8kg', lines[2]?.includes('226.8') === true, lines[2]);
   check('带逗号和引号的备注被正确转义', lines[2]?.includes('"带,逗号""引号"') === true, lines[2]);
   check(
     '动作备注与训练备注也在同一行里',
     lines[2]?.includes('肩膀有点紧') === true && lines[2]?.includes('状态不错') === true,
     lines[2],
+  );
+
+  section('[4.5] CSV：递减组拆成多行（一行一段）');
+  const dropCsv = serializeWorkoutSetsCsv([makeDropWorkoutDetail()]);
+  const dropLines = dropCsv.split('\r\n').filter((line) => line !== '');
+  check('表头 + 3 段 = 4 行', dropLines.length === 4, dropLines.length);
+  check(
+    '段号依次是 1 / 2 / 3，重量是 20 / 15 / 10',
+    dropLines.slice(1).every((line, index) => {
+      const cells = line.split(',');
+      return cells[6] === String(index + 1) && cells[7] === String([20, 15, 10][index]);
+    }),
+    dropLines.slice(1),
+  );
+  check(
+    '次数列是每一段自己的次数：10 / 8 / 6',
+    dropLines.slice(1).every((line, index) => line.split(',')[9] === String([10, 8, 6][index])),
+    dropLines.slice(1),
+  );
+  check(
+    '每一段各自的训练量（按各段自己的次数）：200 / 120 / 60',
+    dropLines
+      .slice(1)
+      .every((line, index) => line.split(',')[11] === String([200, 120, 60][index])),
+    dropLines.slice(1),
   );
 
   // ---------------------------------------------------------------- 导入
@@ -493,6 +562,56 @@ function main(): void {
     'units 里有空字符串时提示到字段路径',
     !badUnitsResult.ok && badUnitsResult.errors[0]?.includes('units') === true,
     badUnitsResult.ok ? null : badUnitsResult.errors,
+  );
+
+  section('[11] 递减组的重量段（dropWeights）');
+  const dropPlan = planImport(emptyData(), makeSnapshot().data);
+  check(
+    '导入后递减段原样保留（75kg + 15kg 那一段）',
+    JSON.stringify(dropPlan.workoutSets.find((item) => item.id === 's2')?.dropWeights) ===
+      JSON.stringify([15]),
+    dropPlan.workoutSets.map((item) => [item.id, item.dropWeights]),
+  );
+  check(
+    '递减段各自的次数也原样保留（8 次）',
+    JSON.stringify(dropPlan.workoutSets.find((item) => item.id === 's2')?.dropReps) ===
+      JSON.stringify([8]),
+    dropPlan.workoutSets.map((item) => [item.id, item.dropReps]),
+  );
+
+  const legacySetSnapshot = makeSnapshot();
+  const legacySets = legacySetSnapshot.data.workouts[0]?.exercises[0]?.sets;
+  if (legacySets?.[1]) {
+    delete (legacySets[1] as { dropWeights?: number[] }).dropWeights;
+  }
+  const legacySetResult = validateBackup(JSON.parse(toBackupJson(legacySetSnapshot)) as unknown);
+  check(
+    '老备份的组没有 dropWeights 时按空数组兜底',
+    legacySetResult.ok &&
+      legacySetResult.snapshot.data.workouts[0]?.exercises[0]?.sets[1]?.dropWeights.length === 0,
+    legacySetResult.ok ? legacySetResult.snapshot.data.workouts[0]?.exercises[0]?.sets : null,
+  );
+
+  const badDropSnapshot = makeSnapshot();
+  const badDropSet = badDropSnapshot.data.workouts[0]?.exercises[0]?.sets[1];
+  if (badDropSet) badDropSet.dropWeights = [15, 10, 5];
+  const badDropResult = validateBackup(JSON.parse(toBackupJson(badDropSnapshot)) as unknown);
+  check(
+    '递减段超过 2 个时提示到字段路径',
+    !badDropResult.ok && badDropResult.errors[0]?.includes('dropWeights') === true,
+    badDropResult.ok ? null : badDropResult.errors,
+  );
+
+  const badDropRepsSnapshot = makeSnapshot();
+  const badRepsSet = badDropRepsSnapshot.data.workouts[0]?.exercises[0]?.sets[1];
+  if (badRepsSet) badRepsSet.dropReps = [0];
+  const badDropRepsResult = validateBackup(
+    JSON.parse(toBackupJson(badDropRepsSnapshot)) as unknown,
+  );
+  check(
+    '递减段的次数不是正整数时提示到字段路径',
+    !badDropRepsResult.ok && badDropRepsResult.errors[0]?.includes('dropReps') === true,
+    badDropRepsResult.ok ? null : badDropRepsResult.errors,
   );
 
   console.log('');

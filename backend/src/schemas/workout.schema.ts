@@ -3,6 +3,27 @@ import { dateKeySchema, idSchema, optionalTextSchema, weightUnitSchema } from '.
 
 const noteSchema = optionalTextSchema(500, '备注');
 
+/** 递减组的后续段重量（不含第一段）：最多 2 个（第 3 段可选） */
+const dropWeightsSchema = z
+  .array(
+    z.coerce
+      .number({ invalid_type_error: '递减组重量必须是数字' })
+      .min(0, '重量不能为负数')
+      .max(2000, '重量超出合理范围'),
+  )
+  .max(2, '递减组最多再填两段重量');
+
+/** 递减组后续段各自的次数（与上面的重量一一对应） */
+const dropRepsSchema = z
+  .array(
+    z.coerce
+      .number({ invalid_type_error: '递减组次数必须是数字' })
+      .int('次数必须是整数')
+      .min(1, '次数必须大于 0')
+      .max(1000, '次数超出合理范围'),
+  )
+  .max(2, '递减组最多再填两段次数');
+
 /** POST /api/workouts —— 开始训练 */
 export const createWorkoutSchema = z.object({
   date: dateKeySchema.optional(),
@@ -45,6 +66,8 @@ export const createSetSchema = z.object({
     .number({ invalid_type_error: '重量必须是数字' })
     .min(0, '重量不能为负数')
     .max(2000, '重量超出合理范围'),
+  dropWeights: dropWeightsSchema.optional(),
+  dropReps: dropRepsSchema.optional(),
   weightUnit: weightUnitSchema.default('kg'),
   reps: z.coerce
     .number({ invalid_type_error: '次数必须是数字' })
@@ -66,6 +89,8 @@ export const createSetSchema = z.object({
 export const updateSetSchema = z
   .object({
     weight: z.coerce.number().min(0, '重量不能为负数').max(2000, '重量超出合理范围').optional(),
+    dropWeights: dropWeightsSchema.optional(),
+    dropReps: dropRepsSchema.optional(),
     weightUnit: weightUnitSchema.optional(),
     reps: z.coerce.number().int('次数必须是整数').min(1, '次数必须大于 0').max(1000).optional(),
     restSeconds: z.coerce

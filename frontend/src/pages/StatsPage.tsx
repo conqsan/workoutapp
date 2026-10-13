@@ -1,9 +1,10 @@
-import type { ReactElement } from 'react';
+import { useState, type ReactElement } from 'react';
 import { Link } from 'react-router-dom';
 import { ExerciseTrendChart } from '@/components/stats/ExerciseTrendChart';
 import { useStats } from '@/hooks/useStats';
 import { cn } from '@/utils/cn';
 import { formatVolume } from '@/utils/format';
+import type { MuscleExerciseGroup } from '@/utils/stats';
 
 export function StatsPage(): ReactElement {
   const {
@@ -11,7 +12,7 @@ export function StatsPage(): ReactElement {
     error,
     stats,
     exerciseOptions,
-    selectedExerciseId,
+    selectedExercise,
     selectExercise,
     trend,
     totals,
@@ -42,8 +43,7 @@ export function StatsPage(): ReactElement {
     );
   }
 
-  const selectedName =
-    exerciseOptions.find((option) => option.id === selectedExerciseId)?.name ?? '动作';
+  const selectedName = selectedExercise === '' ? '动作' : selectedExercise;
 
   return (
     <div className="space-y-4">
@@ -109,14 +109,10 @@ export function StatsPage(): ReactElement {
 
       <section className="card space-y-3" data-testid="stat-exercises">
         <h2 className="text-base font-semibold text-slate-900">各动作训练次数</h2>
-        <CountList
-          items={stats.exercises.map((item) => ({
-            name: item.name,
-            primary: `${item.workoutCount} 次`,
-            secondary: `${item.setCount} 组`,
-            ratio: item.workoutCount / (stats.exercises[0]?.workoutCount || 1),
-          }))}
-        />
+        <p className="text-[11px] text-slate-400">
+          按训练部位分组（一共 {stats.exercises.length} 个动作），点部位展开看细节。
+        </p>
+        <ExerciseGroupList groups={stats.exerciseGroups} />
       </section>
 
       <section className="card space-y-3">
@@ -125,14 +121,14 @@ export function StatsPage(): ReactElement {
         <div className="-mx-1 flex gap-1.5 overflow-x-auto px-1 pb-1">
           {exerciseOptions.map((option) => (
             <button
-              key={option.id}
+              key={option.name}
               type="button"
               data-testid="trend-exercise"
               data-name={option.name}
-              onClick={() => selectExercise(option.id)}
+              onClick={() => selectExercise(option.name)}
               className={cn(
                 'min-h-[36px] shrink-0 rounded-full px-3 text-sm font-medium transition',
-                option.id === selectedExerciseId
+                option.name === selectedExercise
                   ? 'bg-brand-600 text-white'
                   : 'bg-slate-100 text-slate-600',
               )}
@@ -264,5 +260,91 @@ function CountList({ items }: { items: CountListItem[] }): ReactElement {
         </li>
       ))}
     </ul>
+  );
+}
+
+/**
+ * 「各动作训练次数」按部位折叠展示。
+ *
+ * 动作多了之后一条长列表既看不完也翻不动，所以按部位分组：
+ * 默认只展开练得最多的那一组，其余收起；想一次看全就点「全部展开」。
+ */
+function ExerciseGroupList({ groups }: { groups: MuscleExerciseGroup[] }): ReactElement {
+  const [open, setOpen] = useState<string[]>(() =>
+    groups[0] === undefined ? [] : [groups[0].muscleName],
+  );
+
+  if (groups.length === 0) {
+    return <p className="text-sm text-slate-500">还没有数据。</p>;
+  }
+
+  const allOpen = open.length === groups.length;
+
+  return (
+    <div className="space-y-2" data-testid="exercise-groups">
+      <div className="flex justify-end">
+        <button
+          type="button"
+          data-testid="toggle-exercise-groups"
+          onClick={() => setOpen(allOpen ? [] : groups.map((group) => group.muscleName))}
+          className="min-h-[32px] text-xs font-medium text-brand-600"
+        >
+          {allOpen ? '全部收起' : '全部展开'}
+        </button>
+      </div>
+
+      {groups.map((group) => {
+        const expanded = open.includes(group.muscleName);
+        const setCount = group.entries.reduce((total, item) => total + item.setCount, 0);
+
+        return (
+          <div
+            key={group.muscleName}
+            className="rounded-xl bg-slate-50 ring-1 ring-slate-200"
+            data-testid="exercise-group"
+            data-name={group.muscleName}
+          >
+            <button
+              type="button"
+              onClick={() =>
+                setOpen((current) =>
+                  current.includes(group.muscleName)
+                    ? current.filter((name) => name !== group.muscleName)
+                    : [...current, group.muscleName],
+                )
+              }
+              data-testid="exercise-group-toggle"
+              aria-expanded={expanded}
+              className="flex w-full items-center justify-between gap-2 px-3 py-2.5 text-left"
+            >
+              <span className="flex min-w-0 items-center gap-2">
+                <span className="truncate text-sm font-semibold text-slate-800">
+                  {group.muscleName}
+                </span>
+                <span className="shrink-0 text-[11px] text-slate-400">
+                  {group.entries.length} 个动作 · {setCount} 组
+                </span>
+              </span>
+              <span aria-hidden="true" className="shrink-0 text-slate-300">
+                {expanded ? '⌃' : '⌄'}
+              </span>
+            </button>
+
+            {expanded ? (
+              <div className="border-t border-slate-200/70 px-3 pb-1 pt-2">
+                <CountList
+                  items={group.entries.map((item) => ({
+                    name: item.name,
+                    primary: `${item.workoutCount} 次`,
+                    secondary: `${item.setCount} 组`,
+                    ratio: item.workoutCount / (group.entries[0]?.workoutCount || 1),
+                  }))}
+                />
+              </div>
+            ) : null}
+          </div>
+        );
+      })}
+    </div>
   );
 }

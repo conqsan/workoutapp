@@ -282,6 +282,9 @@ export async function clickWhenReady(handle) {
  * 不会出现「8075」这种把新值接在旧值后面的情况。
  */
 export async function setInputValue(handle, value) {
+  // 保存进行中整行是 disabled 的：这时候写进去不会触发提交，必须等它可用
+  const ready = await waitUntil(() => isEnabled(handle));
+  if (!ready) throw new Error('输入框一直是禁用状态，写不进去');
   await centerInView(handle);
   await handle.evaluate((el, next) => {
     el.focus();
@@ -298,6 +301,8 @@ export async function setInputValue(handle, value) {
  * input 和 change 都派发一次，兼容不同 input type 下 React 的事件映射。
  */
 export async function fillInput(handle, value) {
+  const ready = await waitUntil(() => isEnabled(handle));
+  if (!ready) throw new Error('输入框一直是禁用状态，写不进去');
   await centerInView(handle);
   await handle.evaluate((el, next) => {
     el.focus();

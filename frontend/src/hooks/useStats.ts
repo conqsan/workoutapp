@@ -11,9 +11,12 @@ import {
 } from '@/utils/stats';
 
 export interface ExerciseOption {
-  id: string;
+  /** 动作名即键：同一个动作在多个部位下也只算一个（趋势按动作看） */
   name: string;
+  /** 这个动作在哪些部位练过 */
+  muscleNames: string[];
   setCount: number;
+  workoutCount: number;
 }
 
 export interface UseStatsResult {
@@ -21,8 +24,8 @@ export interface UseStatsResult {
   error: string | null;
   stats: StatsSummary | null;
   exerciseOptions: ExerciseOption[];
-  selectedExerciseId: string;
-  selectExercise: (id: string) => void;
+  selectedExercise: string;
+  selectExercise: (name: string) => void;
   trend: TrendPoint[];
   totals: ExerciseTotals | null;
 }
@@ -35,7 +38,7 @@ export function useStats(): UseStatsResult {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [workouts, setWorkouts] = useState<WorkoutDetail[]>([]);
-  const [selectedExerciseId, setSelectedExerciseId] = useState('');
+  const [selectedExercise, setSelectedExercise] = useState('');
 
   useEffect(() => {
     let cancelled = false;
@@ -58,20 +61,33 @@ export function useStats(): UseStatsResult {
     };
   }, []);
 
-  // 只把练过的动作列出来当选项，按组数从多到少排
+  // 只把练过的动作列出来当选项，按组数从多到少排。
+  // 按动作名去重：同名动作（例如「双杠臂屈伸」在胸 / 三头）只出现一次。
   const exerciseOptions = useMemo<ExerciseOption[]>(() => {
     const map = new Map<string, ExerciseOption>();
     for (const workout of workouts) {
       if (workout.status !== 'completed') continue;
+
+      const seen = new Set<string>();
       for (const entry of workout.exercises) {
-        const existing = map.get(entry.exerciseId);
-        if (existing) existing.setCount += entry.sets.length;
-        else
-          map.set(entry.exerciseId, {
-            id: entry.exerciseId,
-            name: entry.exerciseName,
-            setCount: entry.sets.length,
-          });
+        const name = entry.exerciseName;
+        if (name.length === 0) continue;
+
+        const option = map.get(name) ?? {
+          name,
+          muscleNames: [],
+          setCount: 0,
+          workoutCount: 0,
+        };
+        option.setCount += entry.sets.length;
+        if (!seen.has(name)) {
+          option.workoutCount += 1;
+          seen.add(name);
+        }
+        if (entry.muscleName.length > 0 && !option.muscleNames.includes(entry.muscleName)) {
+          option.muscleNames.push(entry.muscleName);
+        }
+        map.set(name, option);
       }
     }
     return [...map.values()].sort(
@@ -81,22 +97,22 @@ export function useStats(): UseStatsResult {
 
   // 默认选练得最多的那个动作
   useEffect(() => {
-    if (selectedExerciseId === '' && exerciseOptions.length > 0) {
+    if (selectedExercise === '' && exerciseOptions.length > 0) {
       const first = exerciseOptions[0];
-      if (first) setSelectedExerciseId(first.id);
+      if (first) setSelectedExercise(first.name);
     }
-  }, [exerciseOptions, selectedExerciseId]);
+  }, [exerciseOptions, selectedExercise]);
 
   const stats = useMemo(() => computeStats(workouts), [workouts]);
 
   const trend = useMemo(
-    () => computeExerciseTrend(workouts, selectedExerciseId),
-    [workouts, selectedExerciseId],
+    () => computeExerciseTrend(workouts, selectedExercise),
+    [workouts, selectedExercise],
   );
 
   const totals = useMemo(
-    () => computeExerciseTotals(workouts, selectedExerciseId),
-    [workouts, selectedExerciseId],
+    () => computeExerciseTotals(workouts, selectedExercise),
+    [workouts, selectedExercise],
   );
 
   return {
@@ -104,8 +120,8 @@ export function useStats(): UseStatsResult {
     error,
     stats,
     exerciseOptions,
-    selectedExerciseId,
-    selectExercise: setSelectedExerciseId,
+    selectedExercise,
+    selectExercise: setSelectedExercise,
     trend,
     totals,
   };

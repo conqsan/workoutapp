@@ -6,7 +6,7 @@
  */
 
 const DB_NAME = 'fitlog';
-const DB_VERSION = 4;
+const DB_VERSION = 6;
 
 export const Store = {
   meta: 'meta',
@@ -105,6 +105,40 @@ export function openDatabase(): Promise<IDBDatabase> {
           if (!Array.isArray(row.units) || row.units.length === 0) {
             cursor.update({ ...row, units: [typeof row.unit === 'string' ? row.unit : 'g'] });
           }
+          cursor.continue();
+        };
+      }
+
+      // v4 -> v5：递减组。动作记住「一组显示几个重量框」，每一组记住后续段的重量。
+      if (previousVersion > 0 && previousVersion < 5 && upgradeTx) {
+        const exerciseCursor = upgradeTx.objectStore(Store.exercises).openCursor();
+        exerciseCursor.onsuccess = () => {
+          const cursor = exerciseCursor.result;
+          if (!cursor) return;
+          const row = cursor.value as { weightSlots?: unknown };
+          if (typeof row.weightSlots !== 'number') cursor.update({ ...row, weightSlots: 1 });
+          cursor.continue();
+        };
+
+        const setCursor = upgradeTx.objectStore(Store.workoutSets).openCursor();
+        setCursor.onsuccess = () => {
+          const cursor = setCursor.result;
+          if (!cursor) return;
+          const row = cursor.value as { dropWeights?: unknown };
+          if (!Array.isArray(row.dropWeights)) cursor.update({ ...row, dropWeights: [] });
+          cursor.continue();
+        };
+      }
+
+      // v5 -> v6：递减组的每一段各自记次数（之前次数是整组一份）。
+      // 老数据先用空数组占位，读的时候按这一组的 reps 兜底，历史数字不会变。
+      if (previousVersion > 0 && previousVersion < 6 && upgradeTx) {
+        const setCursor = upgradeTx.objectStore(Store.workoutSets).openCursor();
+        setCursor.onsuccess = () => {
+          const cursor = setCursor.result;
+          if (!cursor) return;
+          const row = cursor.value as { dropReps?: unknown };
+          if (!Array.isArray(row.dropReps)) cursor.update({ ...row, dropReps: [] });
           cursor.continue();
         };
       }

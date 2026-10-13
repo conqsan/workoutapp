@@ -22,6 +22,15 @@ export const DEFAULT_MUSCLES: readonly Muscle[] = musclesJson.map((muscle, index
   sortOrder: muscle.sortOrder,
 }));
 
+/**
+ * 一组显示几个重量框：JSON 里只有递减组写了 weightSlots（飞鸟递减组 = 3），其余动作按 1。
+ * UI 侧还会用 utils/setWeights 把它收敛到 1～3。
+ */
+export function normalizeWeightSlots(exercise: { weightSlots?: number | undefined }): number {
+  const slots = exercise.weightSlots;
+  return typeof slots === 'number' && Number.isFinite(slots) && slots > 1 ? Math.trunc(slots) : 1;
+}
+
 const muscleIdByName = new Map(DEFAULT_MUSCLES.map((muscle) => [muscle.name, muscle.id]));
 
 export const DEFAULT_EXERCISES: readonly Exercise[] = exercisesJson.map((exercise, index) => {
@@ -37,6 +46,7 @@ export const DEFAULT_EXERCISES: readonly Exercise[] = exercisesJson.map((exercis
     muscleId,
     description: null,
     isCustom: false,
+    weightSlots: normalizeWeightSlots(exercise),
     sortOrder: index,
   };
 });

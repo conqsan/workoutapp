@@ -11,7 +11,8 @@ import {
   type StoreName,
 } from './db';
 import { createId, todayKey } from './ids';
-import { normalizeUnits } from './defaults';
+import { normalizeUnits, normalizeWeightSlots } from './defaults';
+import { requiredSlotCount, segmentCount } from '@/utils/setWeights';
 import {
   APP_VERSION,
   BACKUP_FORMAT,
@@ -58,7 +59,33 @@ async function loadSets(workoutExerciseId: string): Promise<WorkoutSet[]> {
     'workoutExerciseId',
     workoutExerciseId,
   );
-  return sets.sort((a, b) => a.setNumber - b.setNumber);
+  return sets.map(normalizeSet).sort((a, b) => a.setNumber - b.setNumber);
+}
+
+/** v5 / v6 之前的数据没有 dropWeights、dropReps，读出来统一补成数组 */
+function normalizeSet(set: WorkoutSet): WorkoutSet {
+  const dropWeights = Array.isArray(set.dropWeights) ? set.dropWeights : [];
+  const dropReps = Array.isArray(set.dropReps) ? set.dropReps : [];
+  return dropWeights === set.dropWeights && dropReps === set.dropReps
+    ? set
+    : { ...set, dropWeights, dropReps };
+}
+
+/** 递减组的后续段：丢掉非法值，保证存进去的一定是数字数组 */
+function normalizeDropWeights(values: readonly number[] | undefined): number[] {
+  if (values === undefined) return [];
+  return values
+    .filter((value) => typeof value === 'number' && Number.isFinite(value) && value >= 0)
+    .map((value) => Math.round(value * 100) / 100)
+    .slice(0, 2);
+}
+
+/** 递减组后续段各自的次数：正整数，和 dropWeights 一一对应 */
+function normalizeDropReps(values: readonly number[] | undefined): number[] {
+  if (values === undefined) return [];
+  return values
+    .filter((value) => typeof value === 'number' && Number.isInteger(value) && value > 0)
+    .slice(0, 2);
 }
 
 async function loadEntries(workoutId: string): Promise<WorkoutExercise[]> {
@@ -137,7 +164,9 @@ async function readBackupData(): Promise<BackupData> {
 
   return {
     muscles: muscles.slice().sort(compareMuscles),
-    exercises: exercises.slice().sort((a, b) => a.sortOrder - b.sortOrder),
+    exercises: exercises
+      .map((exercise) => ({ ...exercise, weightSlots: normalizeWeightSlots(exercise) }))
+      .sort((a, b) => a.sortOrder - b.sortOrder),
     // units 是 v4 才有的字段：导出给老数据补上，备份文件里就统一带 units 了
     supplements: supplements
       .map((supplement) => ({ ...supplement, units: normalizeUnits(supplement) }))
@@ -211,10 +240,12 @@ export function createLocalRepository(): FitLogRepository {
 
     const muscleOrder = new Map(muscles.map((muscle, index) => [muscle.id, index]));
 
-    return exercises.sort((a, b) => {
-      const muscleDiff = (muscleOrder.get(a.muscleId) ?? 0) - (muscleOrder.get(b.muscleId) ?? 0);
-      return muscleDiff !== 0 ? muscleDiff : a.sortOrder - b.sortOrder;
-    });
+    return exercises
+      .map((exercise) => ({ ...exercise, weightSlots: normalizeWeightSlots(exercise) }))
+      .sort((a, b) => {
+        const muscleDiff = (muscleOrder.get(a.muscleId) ?? 0) - (muscleOrder.get(b.muscleId) ?? 0);
+        return muscleDiff !== 0 ? muscleDiff : a.sortOrder - b.sortOrder;
+      });
   }
 
   async function createExercise(input: CreateExerciseInput): Promise<Exercise> {
@@ -239,6 +270,8 @@ export function createLocalRepository(): FitLogRepository {
       muscleId: input.muscleId,
       description: input.description?.trim() || null,
       isCustom: true,
+      // 递减组只出现在默认动作里，用户自建的动作都是普通动作
+      weightSlots: 1,
       // 自定义动作排在默认动作后面
       sortOrder: 10_000 + (Date.now() % 10_000),
     };
@@ -416,7 +449,9 @@ export function createLocalRepository(): FitLogRepository {
         );
         const exercises: WorkoutExerciseWithSets[] = workoutEntries.map((entry) => ({
           ...entry,
-          sets: (setsByEntry.get(entry.id) ?? []).sort((a, b) => a.setNumber - b.setNumber),
+          sets: (setsByEntry.get(entry.id) ?? [])
+            .map(normalizeSet)
+            .sort((a, b) => a.setNumber - b.setNumber),
         }));
         const allSets = exercises.flatMap((exercise) => exercise.sets);
 
@@ -531,6 +566,22 @@ export function createLocalRepository(): FitLogRepository {
       throw new Error('这次训练还没有任何动作，先加一个动作再完成。');
     }
 
+    // 递减组的必填段没填完就不让收尾，免得把半截数据存成历史
+    const allExercises = await getAll<Exercise>(Store.exercises);
+    const slotsByExerciseId = new Map(
+      allExercises.map((exercise) => [exercise.id, normalizeWeightSlots(exercise)]),
+    );
+    for (const entry of detail.exercises) {
+      const required = requiredSlotCount(slotsByExerciseId.get(entry.exerciseId));
+      for (const set of entry.sets) {
+        if (segmentCount(set) < required) {
+          throw new Error(
+            `「${entry.exerciseName}」第 ${set.setNumber} 组还差第 ${required} 段的重量，补上再完成训练。`,
+          );
+        }
+      }
+    }
+
     // 完成训练 = 所有组都算做完，不留半截的未完成组
     const finishedSets = detail.exercises
       .flatMap((exercise) => exercise.sets)
@@ -643,6 +694,8 @@ export function createLocalRepository(): FitLogRepository {
       workoutExerciseId,
       setNumber: lastSetNumber + 1,
       weight: input.weight,
+      dropWeights: normalizeDropWeights(input.dropWeights),
+      dropReps: normalizeDropReps(input.dropReps),
       weightUnit: input.weightUnit ?? 'kg',
       reps: input.reps,
       restSeconds: input.restSeconds ?? null,
@@ -669,6 +722,8 @@ export function createLocalRepository(): FitLogRepository {
 
     return appendSet(workoutExerciseId, {
       weight: lastSet.weight,
+      dropWeights: lastSet.dropWeights,
+      dropReps: lastSet.dropReps,
       weightUnit: lastSet.weightUnit,
       reps: lastSet.reps,
       restSeconds: lastSet.restSeconds,
@@ -682,6 +737,10 @@ export function createLocalRepository(): FitLogRepository {
     const updated: WorkoutSet = {
       ...set,
       ...(patch.weight === undefined ? {} : { weight: patch.weight }),
+      ...(patch.dropWeights === undefined
+        ? {}
+        : { dropWeights: normalizeDropWeights(patch.dropWeights) }),
+      ...(patch.dropReps === undefined ? {} : { dropReps: normalizeDropReps(patch.dropReps) }),
       ...(patch.weightUnit === undefined ? {} : { weightUnit: patch.weightUnit }),
       ...(patch.reps === undefined ? {} : { reps: patch.reps }),
       ...(patch.restSeconds === undefined ? {} : { restSeconds: patch.restSeconds }),
@@ -721,6 +780,8 @@ export function createLocalRepository(): FitLogRepository {
         workoutExerciseId,
         setNumber: nextNumber,
         weight: item.weight,
+        dropWeights: normalizeDropWeights(item.dropWeights),
+        dropReps: normalizeDropReps(item.dropReps),
         weightUnit: item.weightUnit,
         reps: item.reps,
         restSeconds: null,
@@ -769,6 +830,8 @@ export function createLocalRepository(): FitLogRepository {
       sets: sets.map((set) => ({
         setNumber: set.setNumber,
         weight: set.weight,
+        dropWeights: set.dropWeights ?? [],
+        dropReps: set.dropReps ?? [],
         weightUnit: set.weightUnit,
         reps: set.reps,
       })),

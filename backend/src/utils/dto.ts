@@ -19,6 +19,7 @@ export function toExerciseDto(row: ExerciseWithMuscle): ExerciseDto {
     muscle: toMuscleDto(row.muscle),
     description: row.description,
     isCustom: row.isCustom,
+    weightSlots: row.weightSlots,
     createdAt: row.createdAt.toISOString(),
     updatedAt: row.updatedAt.toISOString(),
   };

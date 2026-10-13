@@ -2,7 +2,7 @@ import exercisesJson from '@shared/defaults/exercises.json';
 import musclesJson from '@shared/defaults/muscles.json';
 import supplementsJson from '@shared/defaults/supplements.json';
 import { getAll, get, put, remove, Store, type MetaRow } from './db';
-import { ensureDefaultsSeeded, normalizeUnits } from './defaults';
+import { ensureDefaultsSeeded, normalizeUnits, normalizeWeightSlots } from './defaults';
 import { createId } from './ids';
 import type { Exercise, Muscle, Supplement, WorkoutExercise } from './types';
 
@@ -30,6 +30,8 @@ interface MuscleSeed {
 interface ExerciseSeed {
   muscle: string;
   name: string;
+  /** 一组显示几个重量框（递减组 > 1），不写就是 1 */
+  weightSlots?: number;
 }
 
 interface SupplementSeed {
@@ -54,7 +56,7 @@ const defaultExerciseKeys = new Set(
 );
 const SYNC_VERSION_KEY = 'defaults-sync-version';
 /** 改动 shared/defaults 里「增删」时把这个数字 +1，老用户下次打开才会同步到 */
-const SYNC_VERSION = 3;
+const SYNC_VERSION = 4;
 
 /**
  * 合并可选单位：seed 里的是「官方顺序」，本地多出来的（用户自己加的）追加在后面。
@@ -101,14 +103,25 @@ async function mergeMissingDefaults(): Promise<void> {
   const muscleNameById = new Map(
     [...muscleByName.values()].map((muscle) => [muscle.id, muscle.name]),
   );
-  const existingKeys = new Set(
-    exercises.map((exercise) =>
+  const exerciseByKey = new Map(
+    exercises.map((exercise) => [
       exerciseKey(muscleNameById.get(exercise.muscleId) ?? '', exercise.name),
-    ),
+      exercise,
+    ]),
   );
 
   for (const [index, seed] of exerciseSeeds.entries()) {
-    if (existingKeys.has(exerciseKey(seed.muscle, seed.name))) continue;
+    const slots = normalizeWeightSlots(seed);
+    const existing = exerciseByKey.get(exerciseKey(seed.muscle, seed.name));
+
+    if (existing) {
+      // 老设备上的动作没有 weightSlots（v4 之前），或者 JSON 里改了段数 —— 只补默认动作，
+      // 用户自己建的动作不动
+      if (!existing.isCustom && normalizeWeightSlots(existing) !== slots) {
+        await put(Store.exercises, { ...existing, weightSlots: slots });
+      }
+      continue;
+    }
 
     const muscleId = muscleByName.get(seed.muscle)?.id;
     if (muscleId === undefined) {
@@ -122,6 +135,7 @@ async function mergeMissingDefaults(): Promise<void> {
       muscleId,
       description: null,
       isCustom: false,
+      weightSlots: slots,
       sortOrder: index,
     } satisfies Exercise);
   }

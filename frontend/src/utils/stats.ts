@@ -1,6 +1,6 @@
 import type { WorkoutDetail } from '../data/types';
 import { toDateKey } from './format';
-import { toKilograms } from './weight';
+import { calculateSetVolumeKg, maxSetWeightKg } from './weight';
 
 /**
  * 统计口径（很重要，先定清楚）：
@@ -20,6 +20,21 @@ export interface CountEntry {
   setCount: number;
 }
 
+/**
+ * 动作的计数。
+ * 同名动作可能分布在多个部位（例如「双杠臂屈伸」在胸和三头各有一条），
+ * 趋势 / 战绩按**动作名**合并成一份，动作次数列表则额外记下它在哪些部位出现过。
+ */
+export interface ExerciseCountEntry extends CountEntry {
+  muscleNames: string[];
+}
+
+/** 「各动作训练次数」按部位分组后的一组 */
+export interface MuscleExerciseGroup {
+  muscleName: string;
+  entries: ExerciseCountEntry[];
+}
+
 export interface StatsSummary {
   totalWorkouts: number;
   weekWorkouts: number;
@@ -30,7 +45,10 @@ export interface StatsSummary {
   weekVolume: number;
   monthVolume: number;
   muscles: CountEntry[];
-  exercises: CountEntry[];
+  /** 全部练过的动作，按训练次数倒序 —— 不截断，动作多了靠分组展示 */
+  exercises: ExerciseCountEntry[];
+  /** 同一份数据按部位分组，供「各动作训练次数」折叠展示 */
+  exerciseGroups: MuscleExerciseGroup[];
 }
 
 export interface TrendPoint {
@@ -74,7 +92,8 @@ export function computeTodaySummary(
       setCount += entry.sets.length;
       if (entry.muscleName.length > 0) muscles.add(entry.muscleName);
       for (const set of entry.sets) {
-        volume += toKilograms(set.weight, set.weightUnit) * set.reps;
+        // 递减组：这一组的所有段都算进今天的量
+        volume += calculateSetVolumeKg(set);
       }
     }
   }
@@ -141,13 +160,11 @@ function bump(map: Map<string, CountEntry>, name: string, workoutDelta: number, 
 }
 
 function workoutVolume(workout: WorkoutDetail): number {
-  let total = 0;
-  for (const entry of workout.exercises) {
-    for (const set of entry.sets) {
-      total += toKilograms(set.weight, set.weightUnit) * set.reps;
-    }
-  }
-  return total;
+  return workout.exercises.reduce(
+    (total, entry) =>
+      total + entry.sets.reduce((inner, set) => inner + calculateSetVolumeKg(set), 0),
+    0,
+  );
 }
 
 function byCountThenName(a: CountEntry, b: CountEntry): number {
@@ -172,7 +189,9 @@ export function computeStats(
   let monthVolume = 0;
 
   const muscleMap = new Map<string, CountEntry>();
-  const exerciseMap = new Map<string, CountEntry>();
+  const exerciseMap = new Map<string, ExerciseCountEntry>();
+  /** 部位 → 动作 → 计数（分组展示用，不合并跨部位的同名动作） */
+  const groupMap = new Map<string, Map<string, ExerciseCountEntry>>();
 
   for (const workout of workouts) {
     if (workout.status !== 'completed') {
@@ -201,6 +220,7 @@ export function computeStats(
     // 同一次训练里同一个部位 / 动作只算一次「训练次数」
     const musclesSeen = new Set<string>();
     const exercisesSeen = new Set<string>();
+    const pairsSeen = new Set<string>();
 
     for (const entry of workout.exercises) {
       const setCount = entry.sets.length;
@@ -212,12 +232,52 @@ export function computeStats(
       }
 
       const exerciseName = entry.exerciseName;
-      if (exerciseName.length > 0) {
-        bump(exerciseMap, exerciseName, exercisesSeen.has(exerciseName) ? 0 : 1, setCount);
-        exercisesSeen.add(exerciseName);
+      if (exerciseName.length === 0) continue;
+
+      const totals = exerciseMap.get(exerciseName) ?? {
+        name: exerciseName,
+        workoutCount: 0,
+        setCount: 0,
+        muscleNames: [],
+      };
+      totals.workoutCount += exercisesSeen.has(exerciseName) ? 0 : 1;
+      totals.setCount += setCount;
+      if (muscleName.length > 0 && !totals.muscleNames.includes(muscleName)) {
+        totals.muscleNames.push(muscleName);
       }
+      exerciseMap.set(exerciseName, totals);
+      exercisesSeen.add(exerciseName);
+
+      if (muscleName.length === 0) continue;
+
+      const bucket = groupMap.get(muscleName) ?? new Map<string, ExerciseCountEntry>();
+      const grouped = bucket.get(exerciseName) ?? {
+        name: exerciseName,
+        workoutCount: 0,
+        setCount: 0,
+        muscleNames: [muscleName],
+      };
+      const pairKey = `${muscleName}\u0000${exerciseName}`;
+      grouped.workoutCount += pairsSeen.has(pairKey) ? 0 : 1;
+      grouped.setCount += setCount;
+      bucket.set(exerciseName, grouped);
+      groupMap.set(muscleName, bucket);
+      pairsSeen.add(pairKey);
     }
   }
+
+  const muscles = [...muscleMap.values()].sort(byCountThenName);
+  const muscleOrder = new Map(muscles.map((item, index) => [item.name, index]));
+  const exerciseGroups: MuscleExerciseGroup[] = [...groupMap.entries()]
+    .map(([muscleName, entries]) => ({
+      muscleName,
+      entries: [...entries.values()].sort(byCountThenName),
+    }))
+    .sort(
+      (a, b) =>
+        (muscleOrder.get(a.muscleName) ?? Number.MAX_SAFE_INTEGER) -
+        (muscleOrder.get(b.muscleName) ?? Number.MAX_SAFE_INTEGER),
+    );
 
   return {
     totalWorkouts,
@@ -227,36 +287,38 @@ export function computeStats(
     todayVolume,
     weekVolume,
     monthVolume,
-    muscles: [...muscleMap.values()].sort(byCountThenName),
-    exercises: [...exerciseMap.values()].sort(byCountThenName).slice(0, 12),
+    muscles,
+    exercises: [...exerciseMap.values()].sort(byCountThenName),
+    exerciseGroups,
   };
 }
 
 /**
  * 某个动作的重量趋势（按天聚合，同一天多次训练合并）。
+ *
+ * 按**动作名**取数据，不按 id：同一动作可能在多个部位下各有一条
+ * （「双杠臂屈伸」既在胸也在三头），按 id 会让它变成两条互不相干的曲线。
  * 重量统一换算成 kg，方便和别的记录比较。
  */
 export function computeExerciseTrend(
   workouts: readonly WorkoutDetail[],
-  exerciseId: string,
+  exerciseName: string,
 ): TrendPoint[] {
+  if (exerciseName === '') return [];
+
   const byDate = new Map<string, TrendPoint>();
 
   for (const workout of workouts) {
     if (workout.status !== 'completed') continue;
 
     const sets = workout.exercises
-      .filter((entry) => entry.exerciseId === exerciseId)
+      .filter((entry) => entry.exerciseName === exerciseName)
       .flatMap((entry) => entry.sets);
     if (sets.length === 0) continue;
 
-    const maxWeightKg = Math.max(
-      ...sets.map((set) => Math.round(toKilograms(set.weight, set.weightUnit) * 100) / 100),
-    );
-    const volumeKg = sets.reduce(
-      (total, set) => total + toKilograms(set.weight, set.weightUnit) * set.reps,
-      0,
-    );
+    // 递减组取最大的那一段，volume 把每一段都算进去
+    const maxWeightKg = Math.max(...sets.map((set) => Math.round(maxSetWeightKg(set) * 100) / 100));
+    const volumeKg = sets.reduce((total, set) => total + calculateSetVolumeKg(set), 0);
 
     const existing = byDate.get(workout.date);
     if (existing) {
@@ -288,8 +350,18 @@ export interface ExerciseTotals {
 
 export function computeExerciseTotals(
   workouts: readonly WorkoutDetail[],
-  exerciseId: string,
+  exerciseName: string,
 ): ExerciseTotals {
+  if (exerciseName === '') {
+    return {
+      maxWeightKg: 0,
+      latestWeightKg: null,
+      totalVolumeKg: 0,
+      totalSets: 0,
+      workoutCount: 0,
+    };
+  }
+
   let maxWeightKg = 0;
   let latestWeightKg: number | null = null;
   let totalVolumeKg = 0;
@@ -301,7 +373,7 @@ export function computeExerciseTotals(
     if (workout.status !== 'completed') continue;
 
     const sets = workout.exercises
-      .filter((entry) => entry.exerciseId === exerciseId)
+      .filter((entry) => entry.exerciseName === exerciseName)
       .flatMap((entry) => entry.sets);
     if (sets.length === 0) continue;
 
@@ -309,9 +381,9 @@ export function computeExerciseTotals(
     totalSets += sets.length;
 
     for (const set of sets) {
-      const kg = toKilograms(set.weight, set.weightUnit);
+      const kg = maxSetWeightKg(set);
       maxWeightKg = Math.max(maxWeightKg, kg);
-      totalVolumeKg += kg * set.reps;
+      totalVolumeKg += calculateSetVolumeKg(set);
       if (workout.date >= latestDate) {
         latestDate = workout.date;
         latestWeightKg = kg;

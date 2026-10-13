@@ -46,6 +46,8 @@ model Exercise {
   muscleId    Int      @map("muscle_id")
   description String?
   isCustom    Boolean  @default(false) @map("is_custom")
+  /// 一组显示几个重量框：普通动作 1，递减组 3（见 shared/defaults/exercises.json）
+  weightSlots Int      @default(1) @map("weight_slots")
   createdAt   DateTime @default(now()) @map("created_at")
   updatedAt   DateTime @updatedAt @map("updated_at")
 
@@ -107,6 +109,12 @@ model WorkoutSet {
   reps              Int
   restSeconds       Int?     @map("rest_seconds")
   note              String?
+  /// 递减组的后续段重量，存 JSON 数字数组字符串（不含第一段，第一段在 weight 里），
+  /// 例如 "[15,10]"；普通动作是 "[]"。读写走 utils/dropWeights.ts。
+  dropWeights       String   @default("[]") @map("drop_weights")
+  /// 递减组后续段各自的次数，与 drop_weights 一一对应，例如 "[8,6]"。
+  /// v6 之前的递减组次数是整组一份，那种老数据这里是空的，读的时候按 reps 兜底。
+  dropReps          String   @default("[]") @map("drop_reps")
   completed         Boolean  @default(false)
   createdAt         DateTime @default(now()) @map("created_at")
   updatedAt         DateTime @updatedAt @map("updated_at")

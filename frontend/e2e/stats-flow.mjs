@@ -108,6 +108,8 @@ async function main() {
     );
 
     section('[4] 各部位 / 各动作训练次数');
+    // 各动作训练次数是按部位折叠的（默认只展开第一组），先全部展开再逐个核对
+    await clickWhenReady(await waitFor(page, 'toggle-exercise-groups'));
     const muscles = await muscleRowTexts(page);
     check(
       '胸练了 2 次',
@@ -133,6 +135,49 @@ async function main() {
       '哑铃侧平举练了 1 次',
       exercises.some((text) => text.includes('哑铃侧平举') && text.includes('1次')),
       exercises,
+    );
+
+    section('[4.5] 各动作训练次数按部位分组');
+    const groupNames = await page.$$eval('[data-testid="exercise-group"]', (nodes) =>
+      nodes.map((node) => node.getAttribute('data-name')),
+    );
+    check(
+      '分组就是练过的部位（胸 / 肩）',
+      groupNames.includes('胸') && groupNames.includes('肩'),
+      groupNames,
+    );
+    check(
+      '每组标题写着动作数与组数',
+      (
+        await page.$eval(
+          '[data-testid="exercise-group"][data-name="胸"]',
+          (node) => node.textContent ?? '',
+        )
+      ).includes('1 个动作'),
+      await page.$eval(
+        '[data-testid="exercise-group"][data-name="胸"]',
+        (node) => node.textContent ?? '',
+      ),
+    );
+
+    // 全部收起 → 一条动作都不显示；再展开 → 都回来（动作多了也不用把页面拉成长条）
+    await clickWhenReady(await waitFor(page, 'toggle-exercise-groups'));
+    check(
+      '全部收起后看不到任何动作',
+      await waitUntil(async () => (await exerciseRowTexts(page)).length === 0),
+      await exerciseRowTexts(page),
+    );
+    await clickWhenReady(await waitFor(page, 'toggle-exercise-groups'));
+    check(
+      '重新展开后所有部位的动作都在',
+      await waitUntil(async () => {
+        const texts = await exerciseRowTexts(page);
+        return (
+          texts.some((text) => text.includes('杠铃卧推')) &&
+          texts.some((text) => text.includes('哑铃侧平举'))
+        );
+      }),
+      await exerciseRowTexts(page),
     );
 
     section('[5] 动作重量变化（默认选中练得最多的动作）');
@@ -237,7 +282,46 @@ async function main() {
       normalizeNumberText(await textOf(page, 'stat-today-volume')).includes('1560kg'),
     );
 
-    section('[9] 页面没有 JS 报错');
+    section('[9] 同名动作（胸 / 三头）在趋势里只出现一次');
+    // 先把上一节留下的进行中训练放弃掉，才能重新开始训练
+    await page.goto(`${BASE_URL}/workout`, { waitUntil: 'domcontentloaded' });
+    await waitFor(page, 'discard-workout', undefined, 10_000);
+    await clickWhenReady(await waitFor(page, 'discard-workout'));
+    await clickWhenReady(await waitFor(page, 'confirm-discard'));
+    await waitFor(page, 'start-workout', undefined, 10_000);
+
+    // 「双杠臂屈伸」默认在胸和三头各有一条（两个不同的动作 id，其实是同一个动作）
+    await createWorkout(page, { muscle: '胸', exercise: '双杠臂屈伸', sets: [[20, 8]] });
+    await createWorkout(page, { muscle: '三头', exercise: '双杠臂屈伸', sets: [[25, 6]] });
+
+    await page.goto(`${BASE_URL}/stats`, { waitUntil: 'domcontentloaded' });
+    await waitFor(page, 'stat-week-workouts', undefined, 15_000);
+
+    const chipNames = await page.$$eval('[data-testid="trend-exercise"]', (nodes) =>
+      nodes.map((node) => node.getAttribute('data-name')),
+    );
+    check('趋势里的动作名没有重复', new Set(chipNames).size === chipNames.length, chipNames);
+    check(
+      '「双杠臂屈伸」只出现一次',
+      chipNames.filter((name) => name === '双杠臂屈伸').length === 1,
+      chipNames,
+    );
+
+    await clickWhenReady(
+      await page.waitForSelector('[data-testid="trend-exercise"][data-name="双杠臂屈伸"]'),
+    );
+    check(
+      '合并后取两边的最大重量 25 kg（只看胸那条会是 20）',
+      await waitUntil(async () => (await textOf(page, 'trend-max')).includes('25')),
+      await textOf(page, 'trend-max'),
+    );
+    check(
+      '总训练量把两个部位合起来算：20×8 + 25×6 = 310 kg',
+      normalizeNumberText(await textOf(page, 'trend-volume')).includes('310kg'),
+      await textOf(page, 'trend-volume'),
+    );
+
+    section('[10] 页面没有 JS 报错');
     check('控制台无报错', pageErrors.length === 0, pageErrors.slice(0, 3));
   } finally {
     await cleanup();

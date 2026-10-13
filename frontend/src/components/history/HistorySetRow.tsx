@@ -1,9 +1,21 @@
-import { useEffect, useState, type ReactElement } from 'react';
+import { useEffect, useRef, useState, type ReactElement } from 'react';
 import type { WorkoutSet, WorkoutSetPatch } from '@/data';
-import { formatWeight, roundWeight } from '@/utils/weight';
+import { cn } from '@/utils/cn';
+import {
+  formatSetSummary,
+  parseSegmentInputs,
+  requiredSlotCount,
+  repsInputValues,
+  segmentCount,
+  slotCount,
+  storedSegmentsKey,
+  weightInputValues,
+} from '@/utils/setWeights';
 
 export interface HistorySetRowProps {
   set: WorkoutSet;
+  /** 这个动作一组显示几个重量框（递减组是 3） */
+  weightSlots: number;
   disabled: boolean;
   onUpdate: (setId: string, patch: WorkoutSetPatch) => void;
   onRemove: (setId: string) => void;
@@ -18,38 +30,49 @@ export interface HistorySetRowProps {
  */
 export function HistorySetRow({
   set,
+  weightSlots,
   disabled,
   onUpdate,
   onRemove,
 }: HistorySetRowProps): ReactElement {
+  const slots = Math.max(slotCount(weightSlots), segmentCount(set));
+  const required = requiredSlotCount(weightSlots);
   const [editing, setEditing] = useState(false);
-  const [weight, setWeight] = useState(String(set.weight));
-  const [reps, setReps] = useState(String(set.reps));
+  const [weightInputs, setWeightInputs] = useState<string[]>(() => weightInputValues(set, slots));
+  const [repsInputs, setRepsInputs] = useState<string[]>(() => repsInputValues(set, slots));
+  const [weightError, setWeightError] = useState<string | null>(null);
   const [rest, setRest] = useState(set.restSeconds === null ? '' : String(set.restSeconds));
   const [confirmRemove, setConfirmRemove] = useState(false);
 
-  // 外部数据变了（保存成功后被数据层重算）就同步回输入框
+  /**
+   * 重量输入框只在「存下来的重量」变化时同步（不重挂组件，避免手机上丢焦点）；
+   * 次数与休息各自同步。
+   */
+  const storedRef = useRef(set);
+  storedRef.current = set;
+  const storedKey = storedSegmentsKey(set);
   useEffect(() => {
-    setWeight(String(set.weight));
-    setReps(String(set.reps));
+    setWeightInputs(weightInputValues(storedRef.current, slots));
+    setRepsInputs(repsInputValues(storedRef.current, slots));
+    setWeightError(null);
+  }, [storedKey, slots]);
+
+  useEffect(() => {
     setRest(set.restSeconds === null ? '' : String(set.restSeconds));
-  }, [set.weight, set.reps, set.restSeconds]);
+  }, [set.restSeconds]);
 
   const save = (): void => {
-    const parsedWeight = Number(weight);
-    const parsedReps = Number(reps);
-
-    // 不合法就还原成已保存的值，不让用户看到假数据
-    if (
-      !Number.isFinite(parsedWeight) ||
-      parsedWeight < 0 ||
-      !Number.isInteger(parsedReps) ||
-      parsedReps <= 0
-    ) {
-      setWeight(String(set.weight));
-      setReps(String(set.reps));
+    const parsed = parseSegmentInputs(weightInputs, repsInputs, slots);
+    if (!parsed.ok) {
+      // 还差另一半就只提示、保留输入；填的本身不合法才还原
+      setWeightError(parsed.message);
+      if (parsed.kind === 'invalid') {
+        setWeightInputs(weightInputValues(set, slots));
+        setRepsInputs(repsInputValues(set, slots));
+      }
       return;
     }
+    setWeightError(null);
 
     const trimmedRest = rest.trim();
     let restSeconds: number | null = set.restSeconds;
@@ -62,7 +85,13 @@ export function HistorySetRow({
     }
 
     setEditing(false);
-    onUpdate(set.id, { weight: roundWeight(parsedWeight), reps: parsedReps, restSeconds });
+    onUpdate(set.id, {
+      weight: parsed.weight,
+      reps: parsed.reps,
+      dropWeights: parsed.dropWeights,
+      dropReps: parsed.dropReps,
+      restSeconds,
+    });
   };
 
   return (
@@ -70,31 +99,70 @@ export function HistorySetRow({
       {editing ? (
         <div className="space-y-2 py-1">
           <p className="text-xs font-semibold text-slate-500">第 {set.setNumber} 组</p>
-          <div className="grid grid-cols-3 gap-2">
-            <label className="block">
-              <span className="mb-1 block text-[11px] font-medium text-slate-500">
-                重量({set.weightUnit})
-              </span>
-              <input
-                type="text"
-                inputMode="decimal"
-                data-testid="edit-set-weight"
-                value={weight}
-                onChange={(event) => setWeight(event.target.value)}
-                className="field h-11 text-center text-base font-semibold"
-              />
-            </label>
-            <label className="block">
-              <span className="mb-1 block text-[11px] font-medium text-slate-500">次数</span>
-              <input
-                type="text"
-                inputMode="numeric"
-                data-testid="edit-set-reps"
-                value={reps}
-                onChange={(event) => setReps(event.target.value)}
-                className="field h-11 text-center text-base font-semibold"
-              />
-            </label>
+          <div className="space-y-2">
+            <div
+              className={cn('grid gap-2', slots > 1 ? 'grid-cols-3' : 'grid-cols-1')}
+              data-testid="edit-set-weights"
+            >
+              {Array.from({ length: slots }, (_, index) => (
+                <div key={index} className="min-w-0 space-y-1">
+                  <span className="mb-1 block text-[11px] font-medium text-slate-500">
+                    {slots > 1
+                      ? `第 ${index + 1} 段(${set.weightUnit} / 次)${index < required ? ' *' : ''}`
+                      : `重量(${set.weightUnit})`}
+                  </span>
+                  <input
+                    type="text"
+                    inputMode="decimal"
+                    data-testid={index === 0 ? 'edit-set-weight' : `edit-set-weight-${index + 1}`}
+                    value={weightInputs[index] ?? ''}
+                    onChange={(event) => {
+                      const next = event.target.value;
+                      setWeightInputs((current) =>
+                        current.map((value, at) => (at === index ? next : value)),
+                      );
+                    }}
+                    className="field h-11 text-center text-base font-semibold"
+                  />
+                  {slots > 1 ? (
+                    <input
+                      type="text"
+                      inputMode="numeric"
+                      data-testid={index === 0 ? 'edit-set-reps' : `edit-set-reps-${index + 1}`}
+                      placeholder="次数"
+                      value={repsInputs[index] ?? ''}
+                      onChange={(event) => {
+                        const next = event.target.value;
+                        setRepsInputs((current) =>
+                          current.map((value, at) => (at === index ? next : value)),
+                        );
+                      }}
+                      className="field h-11 text-center text-base font-semibold"
+                    />
+                  ) : null}
+                </div>
+              ))}
+            </div>
+            {weightError ? (
+              <p className="text-[11px] text-rose-600" data-testid="edit-set-weight-error">
+                {weightError}
+              </p>
+            ) : null}
+          </div>
+          <div className="grid grid-cols-2 gap-2">
+            {slots === 1 ? (
+              <label className="block">
+                <span className="mb-1 block text-[11px] font-medium text-slate-500">次数</span>
+                <input
+                  type="text"
+                  inputMode="numeric"
+                  data-testid="edit-set-reps"
+                  value={repsInputs[0] ?? ''}
+                  onChange={(event) => setRepsInputs([event.target.value])}
+                  className="field h-11 text-center text-base font-semibold"
+                />
+              </label>
+            ) : null}
             <label className="block">
               <span className="mb-1 block text-[11px] font-medium text-slate-500">休息(秒)</span>
               <input
@@ -131,9 +199,7 @@ export function HistorySetRow({
         <div className="flex items-center justify-between gap-2">
           <div className="flex min-w-0 items-baseline gap-2">
             <span className="shrink-0 text-slate-500">第 {set.setNumber} 组</span>
-            <span className="truncate font-medium text-slate-800">
-              {formatWeight(set.weight, set.weightUnit)} × {set.reps}
-            </span>
+            <span className="truncate font-medium text-slate-800">{formatSetSummary(set)}</span>
             <span className="shrink-0 text-xs text-slate-400">
               {set.restSeconds === null ? '—' : `休息 ${set.restSeconds}s`}
             </span>

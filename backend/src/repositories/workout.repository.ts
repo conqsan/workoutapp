@@ -130,6 +130,10 @@ export function addSet(data: {
   workoutExerciseId: number;
   setNumber: number;
   weight: number;
+  /** 递减组的后续段（JSON 数组字符串，见 utils/dropWeights.ts） */
+  dropWeights: string;
+  /** 递减组后续段各自的次数（JSON 数组字符串） */
+  dropReps: string;
   weightUnit: WeightUnit;
   reps: number;
   restSeconds: number | null;
@@ -195,7 +199,14 @@ export async function findLastCompletedSetsForExercise(exerciseId: number) {
   const sets = await prisma.workoutSet.findMany({
     where: { workoutExerciseId: row.id },
     orderBy: { setNumber: 'asc' },
-    select: { setNumber: true, weight: true, weightUnit: true, reps: true },
+    select: {
+      setNumber: true,
+      weight: true,
+      dropWeights: true,
+      dropReps: true,
+      weightUnit: true,
+      reps: true,
+    },
   });
 
   return { workoutId: row.workout.id, date: row.workout.date, sets };

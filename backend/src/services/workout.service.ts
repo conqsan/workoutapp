@@ -4,6 +4,12 @@ import { toDateKey } from '../utils/date';
 import { toExerciseDto } from '../utils/dto';
 import { normalizeOptionalText } from '../utils/text';
 import { calculateTotalVolumeKg, type WeightUnit } from '../utils/weight';
+import {
+  parseDropReps,
+  parseDropWeights,
+  serializeDropReps,
+  serializeDropWeights,
+} from '../utils/dropWeights';
 import * as exerciseRepository from '../repositories/exercise.repository';
 import * as workoutRepository from '../repositories/workout.repository';
 import type { WorkoutDetail } from '../repositories/workout.repository';
@@ -31,6 +37,8 @@ function toSetDto(row: WorkoutSetRow): WorkoutSetDto {
     workoutExerciseId: row.workoutExerciseId,
     setNumber: row.setNumber,
     weight: row.weight,
+    dropWeights: parseDropWeights(row.dropWeights),
+    dropReps: parseDropReps(row.dropReps),
     weightUnit: toWeightUnit(row.weightUnit),
     reps: row.reps,
     restSeconds: row.restSeconds,
@@ -237,6 +245,8 @@ export async function addSet(
     workoutExerciseId,
     setNumber: await workoutRepository.nextSetNumber(workoutExerciseId),
     weight: input.weight,
+    dropWeights: serializeDropWeights(input.dropWeights),
+    dropReps: serializeDropReps(input.dropReps),
     weightUnit: input.weightUnit,
     reps: input.reps,
     restSeconds: input.restSeconds ?? null,
@@ -255,6 +265,12 @@ export async function updateSet(id: number, input: UpdateSetInput): Promise<Work
 
   const data: Prisma.WorkoutSetUpdateInput = {};
   if (input.weight !== undefined) data.weight = input.weight;
+  if (input.dropWeights !== undefined) {
+    data.dropWeights = serializeDropWeights(input.dropWeights);
+  }
+  if (input.dropReps !== undefined) {
+    data.dropReps = serializeDropReps(input.dropReps);
+  }
   if (input.weightUnit !== undefined) data.weightUnit = input.weightUnit;
   if (input.reps !== undefined) data.reps = input.reps;
   if (input.restSeconds !== undefined) data.restSeconds = input.restSeconds;
@@ -298,11 +314,18 @@ export async function getLastWorkout(exerciseId: number): Promise<LastWorkoutDto
     sets: last.sets.map((set) => ({
       setNumber: set.setNumber,
       weight: set.weight,
+      dropWeights: parseDropWeights(set.dropWeights),
+      dropReps: parseDropReps(set.dropReps),
       weightUnit: toWeightUnit(set.weightUnit),
       reps: set.reps,
     })),
     totalVolume: calculateTotalVolumeKg(
-      last.sets.map((set) => ({ ...set, weightUnit: toWeightUnit(set.weightUnit) })),
+      last.sets.map((set) => ({
+        ...set,
+        dropWeights: parseDropWeights(set.dropWeights),
+        dropReps: parseDropReps(set.dropReps),
+        weightUnit: toWeightUnit(set.weightUnit),
+      })),
     ),
   };
 }

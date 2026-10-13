@@ -27,6 +27,7 @@
   { "muscle": "肩", "name": "面拉" },
   { "muscle": "肩", "name": "哑铃飞鸟" },
   { "muscle": "肩", "name": "器械推肩" },
+  { "muscle": "肩", "name": "飞鸟递减组", "weightSlots": 3 },
 
   { "muscle": "二头", "name": "杠铃弯举" },
   { "muscle": "二头", "name": "哑铃弯举" },
@@ -42,11 +43,15 @@
   { "muscle": "腿", "name": "深蹲" },
   { "muscle": "腿", "name": "哈克深蹲" },
   { "muscle": "腿", "name": "腿举" },
+  { "muscle": "腿", "name": "站姿倒蹬腿" },
+  { "muscle": "腿", "name": "坐姿蹬腿" },
   { "muscle": "腿", "name": "腿屈伸" },
   { "muscle": "腿", "name": "腿弯举" },
   { "muscle": "腿", "name": "罗马尼亚硬拉" },
   { "muscle": "腿", "name": "保加利亚分腿蹲" },
   { "muscle": "腿", "name": "臀推" },
+  { "muscle": "腿", "name": "坐姿髋内收" },
+  { "muscle": "腿", "name": "坐姿髋外展" },
   { "muscle": "腿", "name": "小腿提踵" },
 
   { "muscle": "腹", "name": "卷腹" },

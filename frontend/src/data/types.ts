@@ -26,6 +26,11 @@ export interface Exercise {
   description: string | null;
   isCustom: boolean;
   /**
+   * 录入一组时显示几个重量框：普通动作 1 个，递减组 3 个
+   * （见 shared/defaults/exercises.json 里的 weightSlots）。v5 之前的本地数据没有这个字段，按 1 兜底。
+   */
+  weightSlots: number;
+  /**
    * 仅本地使用：决定动作在列表里的先后。
    * 默认动作用 seed 里的书写顺序（卧推 → 上斜 → 下斜…），自定义动作排在最后。
    */
@@ -62,7 +67,19 @@ export interface WorkoutSet {
   id: string;
   workoutExerciseId: string;
   setNumber: number;
+  /** 第一段的重量（普通动作就是这一组的重量） */
   weight: number;
+  /**
+   * 递减组的后续段重量（**不含**第一段），普通动作是空数组。
+   * 段数由动作的 weightSlots 决定：3 个框时这里是 1～2 个值（第 2 段必填、第 3 段可选），
+   * 所有段沿用这一组的 weightUnit。
+   */
+  dropWeights: number[];
+  /**
+   * 递减组各段自己的次数，与 dropWeights 一一对应（v6 起）。
+   * v6 之前的递减组次数是整组一份，读的时候按这一组的 reps 兜底。
+   */
+  dropReps: number[];
   /** 这一组是按哪个单位录入的。v2 之前的老数据没有这个字段，读的时候按 kg 兜底。 */
   weightUnit: WeightUnit;
   reps: number;
@@ -101,7 +118,16 @@ export interface WorkoutSummary {
 
 export interface LastWorkoutSummary {
   date: string;
-  sets: Array<{ setNumber: number; weight: number; weightUnit: WeightUnit; reps: number }>;
+  sets: Array<{
+    setNumber: number;
+    weight: number;
+    /** 递减组的后续段（不含第一段） */
+    dropWeights: number[];
+    /** 后续段各自的次数（与 dropWeights 对应） */
+    dropReps: number[];
+    weightUnit: WeightUnit;
+    reps: number;
+  }>;
   totalVolume: number;
 }
 
@@ -116,6 +142,10 @@ export interface AddWorkoutExerciseInput {
 
 export interface WorkoutSetInput {
   weight: number;
+  /** 递减组的后续段重量（不含第一段）；普通动作不传 */
+  dropWeights?: number[];
+  /** 递减组后续段各自的次数，与 dropWeights 一一对应 */
+  dropReps?: number[];
   weightUnit?: WeightUnit;
   reps: number;
   restSeconds?: number | null;

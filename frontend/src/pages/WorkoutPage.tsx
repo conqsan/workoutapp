@@ -14,7 +14,7 @@ import {
 import { todayKey } from '@/data/ids';
 import { useWorkout } from '@/hooks/useWorkout';
 import { formatDateLabel, formatVolume } from '@/utils/format';
-import { formatWeight } from '@/utils/weight';
+import { formatSetSummary } from '@/utils/setWeights';
 
 export function WorkoutPage(): ReactElement {
   const navigate = useNavigate();
@@ -143,6 +143,12 @@ export function WorkoutPage(): ReactElement {
     return Array.from(new Set(names.filter((name) => name.length > 0))).join(' + ');
   }, [workout]);
 
+  /** 动作 id → 一组显示几个重量框（递减组是 3 个），从动作表里查，不在组件里写死 */
+  const weightSlotsByExerciseId = useMemo(
+    () => new Map(exercises.map((exercise) => [exercise.id, exercise.weightSlots])),
+    [exercises],
+  );
+
   const handlePick = useCallback(
     (exerciseId: string) => {
       setPickerOpen(false);
@@ -236,7 +242,8 @@ export function WorkoutPage(): ReactElement {
               <h3 className="text-sm font-semibold text-slate-800">{entry.exerciseName}</h3>
               <p className="text-sm text-slate-600">
                 {entry.sets
-                  .map((set) => `${formatWeight(set.weight, set.weightUnit)} × ${set.reps}`)
+                  // 递减组要把每一段（重量 + 次数）都列出来，不然只看得到第一段
+                  .map((set) => formatSetSummary(set))
                   .join('   ')}
               </p>
             </section>
@@ -318,6 +325,7 @@ export function WorkoutPage(): ReactElement {
           entry={entry}
           index={index}
           total={workout.exercises.length}
+          weightSlots={weightSlotsByExerciseId.get(entry.exerciseId) ?? 1}
           lastWorkout={lastWorkouts[entry.exerciseId]}
           disabled={saving}
           expanded={expandedId === entry.id}

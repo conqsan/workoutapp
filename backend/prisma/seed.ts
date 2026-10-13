@@ -29,6 +29,8 @@ interface ExerciseSeed {
   muscle: string;
   name: string;
   description?: string | null;
+  /** 一组显示几个重量框（递减组 > 1），不写就是 1 */
+  weightSlots?: number;
 }
 
 interface SupplementSeed {
@@ -66,6 +68,7 @@ async function seedMuscles(): Promise<Map<string, number>> {
 async function seedExercises(muscleIdByName: Map<string, number>): Promise<void> {
   const exercises = loadDefaults<ExerciseSeed[]>('exercises.json');
   const before = await prisma.exercise.count();
+  let slotsBackfilled = 0;
 
   for (const exercise of exercises) {
     const muscleId = muscleIdByName.get(exercise.muscle);
@@ -75,20 +78,42 @@ async function seedExercises(muscleIdByName: Map<string, number>): Promise<void>
       );
     }
 
-    await prisma.exercise.upsert({
+    const weightSlots =
+      typeof exercise.weightSlots === 'number' && exercise.weightSlots > 1
+        ? Math.trunc(exercise.weightSlots)
+        : 1;
+
+    const existing = await prisma.exercise.findUnique({
       where: { muscleId_name: { muscleId, name: exercise.name } },
-      update: {},
-      create: {
-        name: exercise.name,
-        muscleId,
-        description: exercise.description ?? null,
-        isCustom: false,
-      },
+      select: { id: true, weightSlots: true, isCustom: true },
     });
+
+    if (!existing) {
+      await prisma.exercise.create({
+        data: {
+          name: exercise.name,
+          muscleId,
+          description: exercise.description ?? null,
+          isCustom: false,
+          weightSlots,
+        },
+      });
+      continue;
+    }
+
+    // 只补默认动作的「重量框数量」（老库这一列是默认值 1），用户自己建的动作不动
+    if (!existing.isCustom && existing.weightSlots !== weightSlots) {
+      await prisma.exercise.update({
+        where: { id: existing.id },
+        data: { weightSlots },
+      });
+      slotsBackfilled += 1;
+    }
   }
 
   const after = await prisma.exercise.count();
-  console.log(`  训练动作：新增 ${after - before} 个，共 ${after} 个`);
+  const suffix = slotsBackfilled > 0 ? `，补齐 ${slotsBackfilled} 个动作的重量框数量` : '';
+  console.log(`  训练动作：新增 ${after - before} 个，共 ${after} 个${suffix}`);
 }
 
 async function seedSupplements(): Promise<void> {

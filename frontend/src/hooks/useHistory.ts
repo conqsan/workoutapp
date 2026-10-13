@@ -65,6 +65,8 @@ export interface UseHistoryDetailResult {
   loading: boolean;
   workout: WorkoutDetail | null;
   supplements: SupplementRecordWithSupplement[];
+  /** 动作 id → 一组几个重量框（递减组是 3），编辑某组时用 */
+  slotsByExerciseId: Record<string, number>;
   error: string | null;
   removing: boolean;
   saving: boolean;
@@ -83,6 +85,7 @@ export function useHistoryDetail(id: string | undefined): UseHistoryDetailResult
   const [loading, setLoading] = useState(true);
   const [workout, setWorkout] = useState<WorkoutDetail | null>(null);
   const [supplements, setSupplements] = useState<SupplementRecordWithSupplement[]>([]);
+  const [slotsByExerciseId, setSlotsByExerciseId] = useState<Record<string, number>>({});
   const [error, setError] = useState<string | null>(null);
   const [removing, setRemoving] = useState(false);
   const [saving, setSaving] = useState(false);
@@ -118,6 +121,12 @@ export function useHistoryDetail(id: string | undefined): UseHistoryDetailResult
         setWorkout(detail);
         // 补剂按「这次训练的那一天」取，不会和别的日期串
         setSupplements(await repository.listSupplementRecords({ date: detail.date }));
+
+        const exercises = await repository.listExercises();
+        if (cancelled) return;
+        setSlotsByExerciseId(
+          Object.fromEntries(exercises.map((exercise) => [exercise.id, exercise.weightSlots])),
+        );
       } catch (caught) {
         if (!cancelled) {
           setError(caught instanceof Error ? caught.message : '读取训练详情失败。');
@@ -197,6 +206,7 @@ export function useHistoryDetail(id: string | undefined): UseHistoryDetailResult
     loading,
     workout,
     supplements,
+    slotsByExerciseId,
     error,
     removing,
     saving,

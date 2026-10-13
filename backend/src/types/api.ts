@@ -31,6 +31,8 @@ export interface ExerciseDto {
   muscle: MuscleDto;
   description: string | null;
   isCustom: boolean;
+  /** 一组显示几个重量框：普通动作 1，递减组 3 */
+  weightSlots: number;
   createdAt: string;
   updatedAt: string;
 }
@@ -71,7 +73,12 @@ export interface WorkoutSetDto {
   id: number;
   workoutExerciseId: number;
   setNumber: number;
+  /** 第一段的重量（普通动作就是这一组的重量） */
   weight: number;
+  /** 递减组的后续段重量（不含第一段），普通动作是空数组 */
+  dropWeights: number[];
+  /** 递减组后续段各自的次数（与 dropWeights 对应），v6 之前的老数据是空数组 */
+  dropReps: number[];
   /** 录入时用的单位：'kg' | 'lb' */
   weightUnit: 'kg' | 'lb';
   reps: number;
@@ -110,7 +117,16 @@ export interface WorkoutDto {
 export interface LastWorkoutDto {
   workoutId: number;
   date: string;
-  sets: Array<{ setNumber: number; weight: number; weightUnit: 'kg' | 'lb'; reps: number }>;
+  sets: Array<{
+    setNumber: number;
+    weight: number;
+    /** 递减组的后续段（不含第一段） */
+    dropWeights: number[];
+    /** 后续段各自的次数（与 dropWeights 对应） */
+    dropReps: number[];
+    weightUnit: 'kg' | 'lb';
+    reps: number;
+  }>;
   totalVolume: number;
 }
 

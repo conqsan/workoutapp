@@ -258,7 +258,7 @@ async function main() {
     const csv = csvFile ? await readFile(csvFile, 'utf8') : '';
     check(
       'CSV 有表头和换算列',
-      csv.includes('训练日期') && csv.includes('本组训练量(kg)'),
+      csv.includes('训练日期') && csv.includes('本段训练量(kg)') && csv.includes('段'),
       csv.split('\r\n')[0],
     );
     check(

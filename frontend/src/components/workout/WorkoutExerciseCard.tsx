@@ -9,19 +9,17 @@ import type {
 } from '@/data';
 import { cn } from '@/utils/cn';
 import { formatVolume } from '@/utils/format';
-import { formatWeight, formatWeightValue } from '@/utils/weight';
+import { calculateTotalVolumeKg } from '@/utils/weight';
+import { formatSegmentWeights, formatSetSummary } from '@/utils/setWeights';
 
-/** 组芯片上显示的摘要；单位只在不是 kg 时显示，避免芯片过长 */
+/** 组芯片上显示的摘要；单位只在不是 kg 时显示，避免芯片过长。递减组写成 20×10 / 15×8 */
 function chipSummary(set: WorkoutSet): string {
-  const weight = formatWeightValue(set.weight);
-  return set.weightUnit === 'kg'
-    ? `${weight}×${set.reps}`
-    : `${weight}${set.weightUnit}×${set.reps}`;
+  return formatSegmentWeights(set, set.weightUnit === 'kg' ? '' : set.weightUnit);
 }
 
 /** 给测试和无障碍用的完整摘要，始终带单位 */
 function chipSummaryWithUnit(set: WorkoutSet): string {
-  return `${formatWeightValue(set.weight)}${set.weightUnit}×${set.reps}`;
+  return formatSegmentWeights(set, set.weightUnit);
 }
 
 /** 组芯片的三种状态：选中 / 已完成 / 未完成 */
@@ -34,6 +32,8 @@ export interface WorkoutExerciseCardProps {
   entry: WorkoutExerciseWithSets;
   index: number;
   total: number;
+  /** 这个动作一组显示几个重量框（递减组是 3） */
+  weightSlots: number;
   lastWorkout: LastWorkoutSummary | null | undefined;
   disabled: boolean;
   /** 手风琴：同一时间只展开一个动作，避免页面无限往下堆 */
@@ -62,6 +62,7 @@ export function WorkoutExerciseCard({
   entry,
   index,
   total,
+  weightSlots,
   lastWorkout,
   disabled,
   expanded,
@@ -107,7 +108,8 @@ export function WorkoutExerciseCard({
     setActiveSetId(entry.sets[entry.sets.length - 1]?.id ?? null);
   }, [activeSetId, entry.sets]);
 
-  const volume = entry.sets.reduce((total2, set) => total2 + set.weight * set.reps, 0);
+  // 每一段都换算成 kg 再累加（递减组、lb 记录都要算对）
+  const volume = calculateTotalVolumeKg(entry.sets);
   const lastSet = entry.sets[entry.sets.length - 1];
   /** 没有明确选中时，默认编辑最后一组 */
   const activeSet =
@@ -121,6 +123,7 @@ export function WorkoutExerciseCard({
     if (lastSet) {
       onAddSet(entry.id, {
         weight: lastSet.weight,
+        dropWeights: lastSet.dropWeights ?? [],
         weightUnit: lastSet.weightUnit,
         reps: lastSet.reps,
         restSeconds: lastSet.restSeconds,
@@ -132,7 +135,12 @@ export function WorkoutExerciseCard({
     onAddSet(
       entry.id,
       historySet
-        ? { weight: historySet.weight, weightUnit: historySet.weightUnit, reps: historySet.reps }
+        ? {
+            weight: historySet.weight,
+            dropWeights: historySet.dropWeights ?? [],
+            weightUnit: historySet.weightUnit,
+            reps: historySet.reps,
+          }
         : FALLBACK_SET,
     );
   };
@@ -246,9 +254,7 @@ export function WorkoutExerciseCard({
                 上次训练（{formatDateLabel(lastWorkout.date)}）
               </p>
               <p className="text-sm font-medium text-slate-800">
-                {lastWorkout.sets
-                  .map((set) => `${formatWeight(set.weight, set.weightUnit)} × ${set.reps}`)
-                  .join('   ')}
+                {lastWorkout.sets.map((set) => formatSetSummary(set)).join('   ')}
               </p>
               <button
                 type="button"
@@ -290,7 +296,9 @@ export function WorkoutExerciseCard({
 
               {activeSet ? (
                 <SetRow
+                  key={activeSet.id}
                   set={activeSet}
+                  weightSlots={weightSlots}
                   disabled={disabled}
                   onUpdate={onUpdateSet}
                   onRemove={onRemoveSet}

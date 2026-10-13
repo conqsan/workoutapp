@@ -11,7 +11,7 @@
  * （workout → exercises → sets）—— 一次训练里的动作和组离开训练没有意义。
  */
 
-import { toKilograms } from '../utils/weight';
+import { setSegments, toKilograms } from '../utils/weight';
 import type {
   Exercise,
   Muscle,
@@ -394,6 +394,22 @@ function validateExercise(raw: unknown, path: string, issues: IssueList): Exerci
     return null;
   }
 
+  // weightSlots 是 v5 才有的字段（递减组几个重量框）：老备份没有，按 1 兜底
+  const rawSlots = raw.weightSlots;
+  let weightSlots = 1;
+  if (rawSlots !== undefined && rawSlots !== null) {
+    if (
+      typeof rawSlots !== 'number' ||
+      !Number.isInteger(rawSlots) ||
+      rawSlots < 1 ||
+      rawSlots > 3
+    ) {
+      issues.add(`${path}.weightSlots 必须是 1～3 的整数`);
+      return null;
+    }
+    weightSlots = rawSlots;
+  }
+
   if (
     id === null ||
     name === null ||
@@ -410,6 +426,7 @@ function validateExercise(raw: unknown, path: string, issues: IssueList): Exerci
     muscleId,
     description: typeof description === 'string' ? description : null,
     isCustom,
+    weightSlots,
     sortOrder,
   };
 }
@@ -517,6 +534,36 @@ function validateWorkoutSet(raw: unknown, path: string, issues: IssueList): Work
     }
   }
 
+  // dropWeights 是 v5 才有的字段（递减组的后续段）：老备份没有，按空数组兜底
+  const rawDrops = raw.dropWeights;
+  let dropWeights: number[] = [];
+  if (rawDrops !== undefined && rawDrops !== null) {
+    if (
+      !Array.isArray(rawDrops) ||
+      rawDrops.length > 2 ||
+      rawDrops.some((item) => typeof item !== 'number' || !Number.isFinite(item) || item < 0)
+    ) {
+      issues.add(`${path}.dropWeights 必须是 0～2 个非负数字组成的数组`);
+      return null;
+    }
+    dropWeights = rawDrops.map((item) => item as number);
+  }
+
+  // dropReps 是 v6 才有的字段（递减组每段各自的次数）：老备份没有，按空数组兜底
+  const rawReps = raw.dropReps;
+  let dropReps: number[] = [];
+  if (rawReps !== undefined && rawReps !== null) {
+    if (
+      !Array.isArray(rawReps) ||
+      rawReps.length > 2 ||
+      rawReps.some((item) => typeof item !== 'number' || !Number.isInteger(item) || item <= 0)
+    ) {
+      issues.add(`${path}.dropReps 必须是 0～2 个正整数组成的数组`);
+      return null;
+    }
+    dropReps = rawReps.map((item) => item as number);
+  }
+
   if (
     id === null ||
     workoutExerciseId === null ||
@@ -536,6 +583,8 @@ function validateWorkoutSet(raw: unknown, path: string, issues: IssueList): Work
     workoutExerciseId,
     setNumber,
     weight,
+    dropWeights,
+    dropReps,
     weightUnit,
     reps,
     restSeconds: typeof restSeconds === 'number' ? restSeconds : null,
@@ -751,11 +800,12 @@ export const CSV_HEADERS = [
   '部位',
   '动作',
   '组号',
+  '段',
   '重量',
   '单位',
   '次数',
   '休息(秒)',
-  '本组训练量(kg)',
+  '本段训练量(kg)',
   '组备注',
   '动作备注',
   '训练备注',
@@ -770,7 +820,7 @@ function round2(value: number): number {
 }
 
 /**
- * 训练组明细导出成 CSV：一行 = 一组。
+ * 训练组明细导出成 CSV：一行 = 一组的一段（普通动作就是一组一行，递减组 3 段就是 3 行）。
  *
  * 用 CRLF 换行 + 前置 BOM：Excel 打开中文列名和中文备注才不会乱码。
  * 所有重量都额外给一列换算后的 kg，方便直接在表格里透视。
@@ -785,27 +835,30 @@ export function serializeWorkoutSetsCsv(workouts: readonly WorkoutDetail[]): str
   for (const workout of sorted) {
     for (const entry of workout.exercises) {
       for (const set of entry.sets) {
-        const volumeKg = round2(toKilograms(set.weight, set.weightUnit) * set.reps);
-        lines.push(
-          [
-            workout.date,
-            workout.startTime,
-            workout.status === 'completed' ? '已完成' : '进行中',
-            entry.muscleName,
-            entry.exerciseName,
-            String(set.setNumber),
-            String(set.weight),
-            set.weightUnit,
-            String(set.reps),
-            set.restSeconds === null ? '' : String(set.restSeconds),
-            String(volumeKg),
-            set.note,
-            entry.note,
-            workout.note,
-          ]
-            .map(csvCell)
-            .join(','),
-        );
+        setSegments(set).forEach((segment, segmentIndex) => {
+          const volumeKg = round2(toKilograms(segment.weight, set.weightUnit) * segment.reps);
+          lines.push(
+            [
+              workout.date,
+              workout.startTime,
+              workout.status === 'completed' ? '已完成' : '进行中',
+              entry.muscleName,
+              entry.exerciseName,
+              String(set.setNumber),
+              String(segmentIndex + 1),
+              String(segment.weight),
+              set.weightUnit,
+              String(segment.reps),
+              set.restSeconds === null ? '' : String(set.restSeconds),
+              String(volumeKg),
+              set.note,
+              entry.note,
+              workout.note,
+            ]
+              .map(csvCell)
+              .join(','),
+          );
+        });
       }
     }
   }

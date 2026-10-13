@@ -22,6 +22,7 @@ import {
   monthRange,
   startOfWeek,
 } from '../src/utils/stats';
+import { calculateTotalVolumeKg } from '../src/utils/weight';
 
 let failures = 0;
 let checks = 0;
@@ -51,6 +52,10 @@ interface SetSpec {
   weight: number;
   reps: number;
   unit?: WeightUnit;
+  /** 递减组的后续段（不含第一段） */
+  dropWeights?: number[];
+  /** 递减组后续段各自的次数（与 dropWeights 对应） */
+  dropReps?: number[];
 }
 
 interface EntrySpec {
@@ -69,6 +74,8 @@ function makeSet(workoutExerciseId: string, spec: SetSpec, index: number): Worko
     workoutExerciseId,
     setNumber: index + 1,
     weight: spec.weight,
+    dropWeights: spec.dropWeights ?? [],
+    dropReps: spec.dropReps ?? [],
     weightUnit: spec.unit ?? 'kg',
     reps: spec.reps,
     restSeconds: null,
@@ -114,7 +121,7 @@ function makeWorkout(
     updatedAt: '2026-01-01T00:00:00.000Z',
     exercises,
     totalSets: allSets.length,
-    totalVolume: allSets.reduce((total, set) => total + set.weight * set.reps, 0),
+    totalVolume: calculateTotalVolumeKg(allSets),
   };
 }
 
@@ -262,8 +269,8 @@ check('组数仍然算 2 组', zeroStats.exercises[0]?.setCount === 2, zeroStats
 check('部位计数正常', zeroStats.muscles[0]?.name === '背', zeroStats.muscles);
 check(
   '趋势里最大重量是 0，不会变成负数或 NaN',
-  computeExerciseTrend([zeroWorkout], 'pullup')[0]?.maxWeightKg === 0,
-  computeExerciseTrend([zeroWorkout], 'pullup'),
+  computeExerciseTrend([zeroWorkout], '引体向上')[0]?.maxWeightKg === 0,
+  computeExerciseTrend([zeroWorkout], '引体向上'),
 );
 
 section('[6] 空数据');
@@ -277,11 +284,11 @@ check(
   '部位 / 动作列表是空数组',
   emptyStats.muscles.length === 0 && emptyStats.exercises.length === 0,
 );
-check('没有训练时的趋势是空数组', computeExerciseTrend([], 'bench').length === 0);
+check('没有训练时的趋势是空数组', computeExerciseTrend([], '杠铃卧推').length === 0);
 check(
   '没有训练时的战绩是 0',
-  computeExerciseTotals([], 'bench').totalVolumeKg === 0 &&
-    computeExerciseTotals([], 'bench').latestWeightKg === null,
+  computeExerciseTotals([], '杠铃卧推').totalVolumeKg === 0 &&
+    computeExerciseTotals([], '杠铃卧推').latestWeightKg === null,
 );
 
 section('[7] lb 换算');
@@ -299,11 +306,11 @@ check(
   near(lbStats.todayVolume, 100 * 0.45359237 * 5),
   lbStats.todayVolume,
 );
-const lbTotals = computeExerciseTotals([lbWorkout], 'bench');
+const lbTotals = computeExerciseTotals([lbWorkout], '杠铃卧推');
 check('最大重量换算成 45.36kg', near(lbTotals.maxWeightKg, 45.36), lbTotals.maxWeightKg);
 
 section('[8] 动作重量趋势');
-const trend = computeExerciseTrend(WORKOUTS, 'bench');
+const trend = computeExerciseTrend(WORKOUTS, '杠铃卧推');
 check('卧推有 2 个数据点（10/1、10/7）', trend.length === 2, trend);
 check('按日期升序', trend[0]?.date === '2026-10-01' && trend[1]?.date === '2026-10-07', trend);
 check('10/1 最大重量 80kg', near(trend[0]?.maxWeightKg ?? 0, 80), trend[0]);
@@ -329,18 +336,177 @@ const mergedTrend = computeExerciseTrend(
       },
     ]),
   ],
-  'bench',
+  '杠铃卧推',
 );
 check('同一天练两次会合并成一个点', mergedTrend.length === 1, mergedTrend);
 check('合并后取当天最大重量 70kg', near(mergedTrend[0]?.maxWeightKg ?? 0, 70), mergedTrend[0]);
 
 section('[9] 动作战绩');
-const totals = computeExerciseTotals(WORKOUTS, 'bench');
+const totals = computeExerciseTotals(WORKOUTS, '杠铃卧推');
 check('最大重量 85kg', near(totals.maxWeightKg, 85), totals);
 check('最近一次是 85kg', near(totals.latestWeightKg ?? 0, 85), totals);
 check('总训练量 = 800 + 640 + 425 = 1865kg', near(totals.totalVolumeKg, 1865), totals);
 check('总组数 3 组', totals.totalSets === 3, totals);
 check('练过 2 次', totals.workoutCount === 2, totals);
+
+section('[10] 同名动作按「动作名」合并（同一个动作不应该出现两条趋势）');
+// 「双杠臂屈伸」在胸和三头各有一条，id 不同但其实是同一个动作
+const dipWorkouts = [
+  makeWorkout('d1', '2026-10-01', 'completed', [
+    {
+      exerciseId: 'dip-chest',
+      exerciseName: '双杠臂屈伸',
+      muscleName: '胸',
+      sets: [{ weight: 50, reps: 8 }],
+    },
+    {
+      exerciseId: 'dip-triceps',
+      exerciseName: '双杠臂屈伸',
+      muscleName: '三头',
+      sets: [{ weight: 60, reps: 6 }],
+    },
+  ]),
+  makeWorkout('d2', '2026-10-07', 'completed', [
+    {
+      exerciseId: 'dip-triceps',
+      exerciseName: '双杠臂屈伸',
+      muscleName: '三头',
+      sets: [{ weight: 65, reps: 6 }],
+    },
+  ]),
+];
+
+const dipStats = computeStats(dipWorkouts, NOW);
+check(
+  '动作列表里只有一个「双杠臂屈伸」',
+  dipStats.exercises.filter((item) => item.name === '双杠臂屈伸').length === 1,
+  dipStats.exercises.map((item) => item.name),
+);
+check(
+  '它记下了出现在哪些部位（胸 / 三头）',
+  JSON.stringify(dipStats.exercises[0]?.muscleNames) === JSON.stringify(['胸', '三头']),
+  dipStats.exercises[0],
+);
+check(
+  '趋势合并成 2 个数据点（10/1、10/7）',
+  computeExerciseTrend(dipWorkouts, '双杠臂屈伸').length === 2,
+  computeExerciseTrend(dipWorkouts, '双杠臂屈伸'),
+);
+check(
+  '同一天在两个部位练过也只取一个点，取当天最大重量 60kg',
+  near(computeExerciseTrend(dipWorkouts, '双杠臂屈伸')[0]?.maxWeightKg ?? 0, 60),
+  computeExerciseTrend(dipWorkouts, '双杠臂屈伸')[0],
+);
+check(
+  '战绩把两个部位的数据合在一起算（练过 2 次）',
+  computeExerciseTotals(dipWorkouts, '双杠臂屈伸').workoutCount === 2,
+  computeExerciseTotals(dipWorkouts, '双杠臂屈伸'),
+);
+
+section('[11] 递减组的量、最大重量与战绩');
+const dropWorkout = makeWorkout('drop', '2026-10-07', 'completed', [
+  {
+    exerciseId: 'fly-drop',
+    exerciseName: '飞鸟递减组',
+    muscleName: '肩',
+    sets: [{ weight: 20, dropWeights: [15, 10], reps: 10 }],
+  },
+]);
+const dropStats = computeStats([dropWorkout], NOW);
+check(
+  '老数据的递减组（没有分段次数）按整组次数兜底：(20+15+10) × 10 = 450kg',
+  near(dropStats.todayVolume, 450),
+  dropStats.todayVolume,
+);
+check(
+  '趋势里的最大重量取最大的一段 20kg',
+  near(computeExerciseTrend([dropWorkout], '飞鸟递减组')[0]?.maxWeightKg ?? 0, 20),
+  computeExerciseTrend([dropWorkout], '飞鸟递减组')[0],
+);
+const dropTotals = computeExerciseTotals([dropWorkout], '飞鸟递减组');
+check('战绩总训练量同样把三段都算上', near(dropTotals.totalVolumeKg, 450), dropTotals);
+check('组数还是 1 组（三段属于同一组）', dropTotals.totalSets === 1, dropTotals);
+
+const lbDropWorkout = makeWorkout('drop-lb', '2026-10-07', 'completed', [
+  {
+    exerciseId: 'fly-drop',
+    exerciseName: '飞鸟递减组',
+    muscleName: '肩',
+    sets: [{ weight: 100, dropWeights: [50, 25], reps: 5, unit: 'lb' }],
+  },
+]);
+check(
+  'lb 的每一段都换算成 kg：(100+50+25)lb × 5 ≈ 396.9kg',
+  near(computeStats([lbDropWorkout], NOW).todayVolume, 175 * 0.45359237 * 5),
+  computeStats([lbDropWorkout], NOW).todayVolume,
+);
+
+// v6 起：每一段各自记次数
+const dropRepsWorkout = makeWorkout('drop-reps', '2026-10-07', 'completed', [
+  {
+    exerciseId: 'fly-drop',
+    exerciseName: '飞鸟递减组',
+    muscleName: '肩',
+    sets: [{ weight: 20, reps: 10, dropWeights: [15, 10], dropReps: [8, 6] }],
+  },
+]);
+const dropRepsStats = computeStats([dropRepsWorkout], NOW);
+check(
+  '每段各自次数：20×10 + 15×8 + 10×6 = 380kg',
+  near(dropRepsStats.todayVolume, 380),
+  dropRepsStats.todayVolume,
+);
+check(
+  '趋势最大重量仍是最大的一段 20kg',
+  near(computeExerciseTrend([dropRepsWorkout], '飞鸟递减组')[0]?.maxWeightKg ?? 0, 20),
+  computeExerciseTrend([dropRepsWorkout], '飞鸟递减组')[0],
+);
+check(
+  '战绩总训练量同样按各段自己的次数累加',
+  near(computeExerciseTotals([dropRepsWorkout], '飞鸟递减组').totalVolumeKg, 380),
+  computeExerciseTotals([dropRepsWorkout], '飞鸟递减组'),
+);
+
+section('[12] 各动作训练次数：不再截断，且按部位分组');
+const manyEntries: EntrySpec[] = [];
+for (let index = 0; index < 8; index += 1) {
+  manyEntries.push({
+    exerciseId: `chest-${index}`,
+    exerciseName: `胸部动作${index + 1}`,
+    muscleName: '胸',
+    sets: [{ weight: 40, reps: 10 }],
+  });
+}
+for (let index = 0; index < 5; index += 1) {
+  manyEntries.push({
+    exerciseId: `back-${index}`,
+    exerciseName: `背部动作${index + 1}`,
+    muscleName: '背',
+    sets: [{ weight: 40, reps: 10 }],
+  });
+}
+const manyStats = computeStats([makeWorkout('many', '2026-10-07', 'completed', manyEntries)], NOW);
+check(
+  '13 个动作全部列出（以前会被切成 12 个）',
+  manyStats.exercises.length === 13,
+  manyStats.exercises.length,
+);
+check(
+  '按部位分成 2 组',
+  manyStats.exerciseGroups.length === 2,
+  manyStats.exerciseGroups.map((group) => group.muscleName),
+);
+check(
+  '每个部位组里的动作数正确（胸 8 / 背 5）',
+  manyStats.exerciseGroups.find((group) => group.muscleName === '胸')?.entries.length === 8 &&
+    manyStats.exerciseGroups.find((group) => group.muscleName === '背')?.entries.length === 5,
+  manyStats.exerciseGroups.map((group) => [group.muscleName, group.entries.length]),
+);
+check(
+  '分组的动作数加起来等于全部动作数',
+  manyStats.exerciseGroups.reduce((total, group) => total + group.entries.length, 0) ===
+    manyStats.exercises.length,
+);
 
 console.log('');
 if (failures > 0) {

@@ -13,6 +13,7 @@ export function HistoryDetailPage(): ReactElement {
     loading,
     workout,
     supplements,
+    slotsByExerciseId,
     error,
     removing,
     saving,
@@ -188,6 +189,7 @@ export function HistoryDetailPage(): ReactElement {
                 <HistorySetRow
                   key={set.id}
                   set={set}
+                  weightSlots={slotsByExerciseId[entry.exerciseId] ?? 1}
                   disabled={saving}
                   onUpdate={(setId, patch) => void updateSet(setId, patch)}
                   onRemove={(setId) => void removeSet(setId)}
