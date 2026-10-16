@@ -63,14 +63,14 @@ export function StatsPage(): ReactElement {
             testId="stat-week-workouts"
           />
           <BigStat
-            label="本月"
-            value={`${stats.monthWorkouts}`}
+            label="近 30 天"
+            value={`${stats.last30Workouts}`}
             unit="次"
-            testId="stat-month-workouts"
+            testId="stat-last30-workouts"
           />
         </div>
         <p className="px-1 text-[11px] text-slate-400">
-          一周从周一开始算；合计已完成 {stats.totalWorkouts} 次训练。
+          一周从周一开始算；近 30 天含今天。合计已完成 {stats.totalWorkouts} 次训练。
         </p>
       </section>
 
@@ -88,9 +88,9 @@ export function StatsPage(): ReactElement {
             testId="stat-week-volume"
           />
           <SmallStat
-            label="本月"
-            value={formatVolume(stats.monthVolume)}
-            testId="stat-month-volume"
+            label="近 30 天"
+            value={formatVolume(stats.last30Volume)}
+            testId="stat-last30-volume"
           />
         </div>
       </section>

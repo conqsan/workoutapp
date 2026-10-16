@@ -1,0 +1,643 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>FitLog 动作示意图 · 设计样例</title>
+    <style>
+      :root {
+        color-scheme: light;
+      }
+      * {
+        box-sizing: border-box;
+      }
+      body {
+        margin: 0;
+        padding: 20px 16px 48px;
+        width: 430px;
+        background: #f8fafc;
+        color: #0f172a;
+        font:
+          14px/1.6 -apple-system,
+          'Segoe UI',
+          'Microsoft YaHei',
+          sans-serif;
+      }
+      h1 {
+        font-size: 18px;
+        margin: 0 0 4px;
+      }
+      h2 {
+        font-size: 14px;
+        margin: 28px 0 10px;
+        color: #334155;
+      }
+      p {
+        margin: 6px 0;
+        color: #475569;
+      }
+      .muted {
+        color: #94a3b8;
+        font-size: 12px;
+      }
+      .card {
+        background: #fff;
+        border-radius: 16px;
+        box-shadow: 0 1px 2px rgb(15 23 42 / 6%);
+        padding: 12px;
+        margin-bottom: 10px;
+      }
+      .sheet {
+        display: grid;
+        gap: 10px;
+      }
+      .pair {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+      }
+      .pair figure {
+        margin: 0;
+        text-align: center;
+      }
+      .pair figcaption {
+        font-size: 11px;
+        color: #94a3b8;
+      }
+      svg {
+        display: block;
+      }
+      .fig-48 {
+        width: 48px;
+        height: 48px;
+      }
+      .fig-72 {
+        width: 72px;
+        height: 72px;
+      }
+      .fig-96 {
+        width: 96px;
+        height: 96px;
+      }
+      .name {
+        font-weight: 600;
+      }
+      .row {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+      }
+      .chip {
+        border-radius: 999px;
+        background: #e0e7ff;
+        color: #3730a3;
+        font-size: 11px;
+        font-weight: 600;
+        padding: 2px 8px;
+      }
+      pre {
+        background: #0f172a;
+        color: #e2e8f0;
+        border-radius: 12px;
+        font-size: 11px;
+        line-height: 1.5;
+        margin: 8px 0 0;
+        overflow-x: auto;
+        padding: 10px 12px;
+      }
+      .pill {
+        align-items: center;
+        background: #f1f5f9;
+        border-radius: 999px;
+        color: #475569;
+        display: inline-flex;
+        font-size: 12px;
+        gap: 6px;
+        margin: 4px 6px 0 0;
+        padding: 3px 10px;
+      }
+    </style>
+  </head>
+  <body>
+    <h1>动作线性示意图 · 设计样例</h1>
+    <p class="muted">
+      独立原型页（不在 App 里）。左边是「起始」，右边是「发力」，都只用线条和圆点画， 一套骨架 +
+      每个动作十几个坐标点。
+    </p>
+
+    <h2>1. 同一套骨架，动作只是坐标不同</h2>
+    <div class="sheet" id="sheet"></div>
+
+    <h2>2. 两个姿势之间做插值 = 会动的示意图</h2>
+    <div class="card">
+      <div class="row">
+        <div id="animated" class="fig-96"></div>
+        <div>
+          <div class="name">哑铃侧平举</div>
+          <div class="muted">起始 ↔ 发力 之间来回插值，2.4s 一个来回</div>
+          <div class="muted">（尊重 prefers-reduced-motion：关掉动画时只显示起始姿势）</div>
+        </div>
+      </div>
+    </div>
+
+    <h2>3. 放进 App 的两种用法</h2>
+    <div class="card">
+      <div class="muted">动作选择器里的 48px 小图（一眼知道是哪个动作）</div>
+      <div class="row" style="margin-top: 8px">
+        <div id="picker-1" class="fig-48"></div>
+        <div style="flex: 1">
+          <div class="name">深蹲</div>
+          <div class="muted">腿 · 默认动作</div>
+        </div>
+        <div class="chip">+ 加</div>
+      </div>
+      <div class="row" style="margin-top: 8px">
+        <div id="picker-2" class="fig-48"></div>
+        <div style="flex: 1">
+          <div class="name">Y字侧平举</div>
+          <div class="muted">肩 · 默认动作</div>
+        </div>
+        <div class="chip">+ 加</div>
+      </div>
+    </div>
+    <div class="card">
+      <div class="muted">训练页动作卡片：折叠行左侧一个 72px 图，展开后右侧放组</div>
+      <div class="row" style="margin-top: 8px">
+        <div id="card-1" class="fig-72"></div>
+        <div style="flex: 1">
+          <div class="name">杠铃卧推</div>
+          <div class="muted">胸 · 3 组 · 1,440 kg</div>
+        </div>
+        <div class="muted">⌄</div>
+      </div>
+    </div>
+
+    <h2>4. 每个动作的数据长这样</h2>
+    <p class="muted">
+      一个动作 = 两个姿势 × 十几个坐标点 + 器材图元。没有位图，全部内联 SVG（每个动作约 0.5–1KB）。
+    </p>
+    <pre id="dsl"></pre>
+
+    <p class="muted" style="margin-top: 14px">
+      姿势是靠坐标摆出来的，所以「像不像」需要人眼过一遍：正式实现时会先生成一张全部动作的对照表，
+      你圈出不准的，我再逐个调坐标。
+    </p>
+
+    <script>
+      // ---------------------------------------------------------------- 骨架 / 器材
+      const SEGMENTS = [
+        ['neck', 'hip'],
+        ['neck', 'elbowL'],
+        ['elbowL', 'wristL'],
+        ['neck', 'elbowR'],
+        ['elbowR', 'wristR'],
+        ['hip', 'kneeL'],
+        ['kneeL', 'ankleL'],
+        ['ankleL', 'toeL'],
+        ['hip', 'kneeR'],
+        ['kneeR', 'ankleR'],
+        ['ankleR', 'toeR'],
+      ];
+
+      const STROKE = '#0f172a';
+      const EQUIP = '#64748b';
+
+      const pt = (p) => `${p[0]},${p[1]}`;
+
+      function limb(a, b) {
+        return `<line x1="${a[0]}" y1="${a[1]}" x2="${b[0]}" y2="${b[1]}" />`;
+      }
+
+      function circle(p, r) {
+        return `<circle cx="${p[0]}" cy="${p[1]}" r="${r}" />`;
+      }
+
+      /** 器材：横杆 / 哑铃 / 卧推凳 / 单杠 / 地面 */
+      function equipment(list) {
+        return (list || [])
+          .map((item) => {
+            if (item.type === 'bar') {
+              return `<line x1="${item.a[0]}" y1="${item.a[1]}" x2="${item.b[0]}" y2="${item.b[1]}" />`;
+            }
+            if (item.type === 'plate') {
+              return circle([item.x, item.y], 5);
+            }
+            if (item.type === 'dumbbell') {
+              const [x, y] = item.at;
+              const dx = item.dx === undefined ? 5 : item.dx;
+              const dy = item.dy === undefined ? 0 : item.dy;
+              return (
+                `<line x1="${x - dx}" y1="${y - dy}" x2="${x + dx}" y2="${y + dy}" />` +
+                `<line x1="${x - dx - 2}" y1="${y - dy - 3}" x2="${x - dx - 2}" y2="${y - dy + 3}" />` +
+                `<line x1="${x + dx + 2}" y1="${y + dy - 3}" x2="${x + dx + 2}" y2="${y + dy + 3}" />`
+              );
+            }
+            if (item.type === 'bench') {
+              return `<rect x="${item.x}" y="${item.y}" width="${item.w}" height="${item.h}" rx="3" />`;
+            }
+            if (item.type === 'stack') {
+              return (
+                `<rect x="${item.x}" y="${item.y}" width="${item.w}" height="${item.h}" rx="3" />` +
+                (item.cable ? limb(item.cable[0], item.cable[1]) : '')
+              );
+            }
+            if (item.type === 'floor') {
+              return `<line x1="4" y1="${item.y}" x2="96" y2="${item.y}" />`;
+            }
+            return '';
+          })
+          .join('');
+      }
+
+      /** 一个姿势 → 一段 SVG（100×100 坐标系） */
+      function pose(figure, size) {
+        const p = figure.points;
+        const body = SEGMENTS.map(([a, b]) => (p[a] && p[b] ? limb(p[a], p[b]) : '')).join('');
+        const head = p.head ? circle(p.head, 6.5) : '';
+
+        return (
+          `<svg viewBox="0 0 100 100" width="${size}" height="${size}" fill="none" ` +
+          `stroke-width="2.6" stroke-linecap="round">` +
+          `<g stroke="${EQUIP}" stroke-width="2">${equipment(figure.equipment)}</g>` +
+          `<g stroke="${STROKE}">${body}</g>` +
+          `<g stroke="${STROKE}" fill="#fff">${head}</g>` +
+          `</svg>`
+        );
+      }
+
+      // ---------------------------------------------------------------- 动作数据
+      const FLOOR = { type: 'floor', y: 92 };
+
+      const FIGURES = [
+        {
+          name: '杠铃卧推',
+          muscle: '胸',
+          start: {
+            equipment: [
+              { type: 'bench', x: 18, y: 58, w: 64, h: 6 },
+              { type: 'floor', y: 92 },
+              { type: 'bar', a: [34, 50], b: [66, 50] },
+              { type: 'plate', x: 34, y: 50 },
+              { type: 'plate', x: 66, y: 50 },
+            ],
+            points: {
+              head: [24, 52],
+              neck: [32, 54],
+              hip: [62, 56],
+              elbowL: [40, 60],
+              wristL: [44, 50],
+              elbowR: [44, 60],
+              wristR: [48, 50],
+              kneeL: [70, 62],
+              ankleL: [78, 74],
+              toeL: [84, 78],
+              kneeR: [74, 62],
+              ankleR: [82, 74],
+              toeR: [88, 78],
+            },
+          },
+          end: {
+            equipment: [
+              { type: 'bench', x: 18, y: 58, w: 64, h: 6 },
+              { type: 'floor', y: 92 },
+              { type: 'bar', a: [34, 34], b: [66, 34] },
+              { type: 'plate', x: 34, y: 34 },
+              { type: 'plate', x: 66, y: 34 },
+            ],
+            points: {
+              head: [24, 52],
+              neck: [32, 54],
+              hip: [62, 56],
+              elbowL: [40, 46],
+              wristL: [44, 34],
+              elbowR: [44, 46],
+              wristR: [48, 34],
+              kneeL: [70, 62],
+              ankleL: [78, 74],
+              toeL: [84, 78],
+              kneeR: [74, 62],
+              ankleR: [82, 74],
+              toeR: [88, 78],
+            },
+          },
+        },
+        {
+          name: '深蹲',
+          muscle: '腿',
+          start: {
+            equipment: [
+              { type: 'floor', y: 92 },
+              { type: 'bar', a: [40, 24], b: [60, 24] },
+              { type: 'plate', x: 40, y: 24 },
+              { type: 'plate', x: 60, y: 24 },
+            ],
+            points: {
+              head: [50, 16],
+              neck: [50, 26],
+              hip: [50, 50],
+              elbowL: [43, 34],
+              wristL: [42, 26],
+              elbowR: [57, 34],
+              wristR: [58, 26],
+              kneeL: [52, 68],
+              ankleL: [50, 88],
+              toeL: [57, 91],
+              kneeR: [56, 68],
+              ankleR: [54, 88],
+              toeR: [61, 91],
+            },
+          },
+          end: {
+            equipment: [
+              { type: 'floor', y: 92 },
+              { type: 'bar', a: [40, 34], b: [60, 34] },
+              { type: 'plate', x: 40, y: 34 },
+              { type: 'plate', x: 60, y: 34 },
+            ],
+            points: {
+              head: [44, 26],
+              neck: [45, 36],
+              hip: [42, 56],
+              elbowL: [39, 44],
+              wristL: [40, 36],
+              elbowR: [52, 44],
+              wristR: [56, 36],
+              kneeL: [58, 62],
+              ankleL: [52, 88],
+              toeL: [59, 91],
+              kneeR: [62, 62],
+              ankleR: [56, 88],
+              toeR: [63, 91],
+            },
+          },
+        },
+        {
+          name: '引体向上',
+          muscle: '背',
+          start: {
+            equipment: [{ type: 'bar', a: [24, 22], b: [76, 22] }],
+            points: {
+              head: [50, 36],
+              neck: [50, 46],
+              hip: [50, 68],
+              elbowL: [42, 52],
+              wristL: [36, 22],
+              elbowR: [58, 52],
+              wristR: [64, 22],
+              kneeL: [46, 78],
+              ankleL: [44, 90],
+              toeL: [40, 93],
+              kneeR: [54, 78],
+              ankleR: [56, 90],
+              toeR: [60, 93],
+            },
+          },
+          end: {
+            equipment: [{ type: 'bar', a: [24, 22], b: [76, 22] }],
+            points: {
+              head: [50, 10],
+              neck: [50, 20],
+              hip: [50, 44],
+              elbowL: [40, 32],
+              wristL: [36, 22],
+              elbowR: [60, 32],
+              wristR: [64, 22],
+              kneeL: [46, 56],
+              ankleL: [44, 70],
+              toeL: [40, 73],
+              kneeR: [54, 56],
+              ankleR: [56, 70],
+              toeR: [60, 73],
+            },
+          },
+        },
+        {
+          name: '杠铃划船',
+          muscle: '背',
+          start: {
+            equipment: [
+              { type: 'floor', y: 92 },
+              { type: 'bar', a: [34, 74], b: [66, 74] },
+              { type: 'plate', x: 34, y: 74 },
+              { type: 'plate', x: 66, y: 74 },
+            ],
+            points: {
+              head: [30, 40],
+              neck: [38, 44],
+              hip: [62, 52],
+              elbowL: [40, 58],
+              wristL: [42, 72],
+              elbowR: [46, 58],
+              wristR: [48, 72],
+              kneeL: [66, 66],
+              ankleL: [68, 88],
+              toeL: [74, 91],
+              kneeR: [70, 66],
+              ankleR: [72, 88],
+              toeR: [78, 91],
+            },
+          },
+          end: {
+            equipment: [
+              { type: 'floor', y: 92 },
+              { type: 'bar', a: [34, 58], b: [66, 58] },
+              { type: 'plate', x: 34, y: 58 },
+              { type: 'plate', x: 66, y: 58 },
+            ],
+            points: {
+              head: [30, 40],
+              neck: [38, 44],
+              hip: [62, 52],
+              elbowL: [42, 44],
+              wristL: [44, 58],
+              elbowR: [50, 44],
+              wristR: [52, 58],
+              kneeL: [66, 66],
+              ankleL: [68, 88],
+              toeL: [74, 91],
+              kneeR: [70, 66],
+              ankleR: [72, 88],
+              toeR: [78, 91],
+            },
+          },
+        },
+        {
+          name: '哑铃侧平举',
+          muscle: '肩',
+          start: {
+            equipment: [{ type: 'floor', y: 92 }],
+            points: {
+              head: [50, 16],
+              neck: [50, 26],
+              hip: [50, 56],
+              elbowL: [42, 40],
+              wristL: [40, 54],
+              elbowR: [58, 40],
+              wristR: [60, 54],
+              kneeL: [46, 72],
+              ankleL: [45, 90],
+              toeL: [40, 92],
+              kneeR: [54, 72],
+              ankleR: [55, 90],
+              toeR: [60, 92],
+            },
+            dumbbells: [
+              { at: [40, 56], dx: 5, dy: 0 },
+              { at: [60, 56], dx: 5, dy: 0 },
+            ],
+          },
+          end: {
+            equipment: [{ type: 'floor', y: 92 }],
+            points: {
+              head: [50, 16],
+              neck: [50, 26],
+              hip: [50, 56],
+              elbowL: [34, 30],
+              wristL: [22, 28],
+              elbowR: [66, 30],
+              wristR: [78, 28],
+              kneeL: [46, 72],
+              ankleL: [45, 90],
+              toeL: [40, 92],
+              kneeR: [54, 72],
+              ankleR: [55, 90],
+              toeR: [60, 92],
+            },
+            dumbbells: [
+              { at: [21, 28], dx: 0, dy: 5 },
+              { at: [79, 28], dx: 0, dy: 5 },
+            ],
+          },
+        },
+        {
+          name: 'Y字侧平举',
+          muscle: '肩',
+          start: {
+            equipment: [{ type: 'floor', y: 92 }],
+            points: {
+              head: [50, 18],
+              neck: [50, 28],
+              hip: [50, 58],
+              elbowL: [44, 40],
+              wristL: [46, 54],
+              elbowR: [56, 40],
+              wristR: [54, 54],
+              kneeL: [46, 74],
+              ankleL: [45, 90],
+              toeL: [40, 92],
+              kneeR: [54, 74],
+              ankleR: [55, 90],
+              toeR: [60, 92],
+            },
+            dumbbells: [
+              { at: [46, 56], dx: 0, dy: 5 },
+              { at: [54, 56], dx: 0, dy: 5 },
+            ],
+          },
+          end: {
+            equipment: [{ type: 'floor', y: 92 }],
+            points: {
+              head: [50, 18],
+              neck: [50, 28],
+              hip: [50, 58],
+              elbowL: [36, 20],
+              wristL: [24, 8],
+              elbowR: [64, 20],
+              wristR: [76, 8],
+              kneeL: [46, 74],
+              ankleL: [45, 90],
+              toeL: [40, 92],
+              kneeR: [54, 74],
+              ankleR: [55, 90],
+              toeR: [60, 92],
+            },
+            dumbbells: [
+              { at: [22, 6], dx: 5, dy: 3 },
+              { at: [78, 6], dx: 5, dy: 3 },
+            ],
+          },
+        },
+      ];
+
+      // 哑铃单独画（挂在手腕上）
+      const withDumbbells = (figure) => ({
+        ...figure,
+        equipment: [...(figure.equipment || []), ...(figure.dumbbells || [])],
+      });
+
+      // ---------------------------------------------------------------- 渲染
+      const sheet = document.getElementById('sheet');
+      for (const item of FIGURES) {
+        const card = document.createElement('div');
+        card.className = 'card';
+        card.innerHTML =
+          '<div class="row"><div class="name">' +
+          item.name +
+          '</div><span class="chip">' +
+          item.muscle +
+          '</span></div>' +
+          '<div class="pair" style="margin-top:6px">' +
+          '<figure>' +
+          pose(withDumbbells(item.start), 96) +
+          '<figcaption>起始</figcaption></figure>' +
+          '<figure>' +
+          pose(withDumbbells(item.end), 96) +
+          '<figcaption>发力</figcaption></figure>' +
+          '<div class="muted" style="margin-left:auto">' +
+          item.name +
+          ' 的两个关键姿势</div>' +
+          '</div>';
+        sheet.appendChild(card);
+      }
+
+      document.getElementById('picker-1').innerHTML = pose(FIGURES[1].start, 48);
+      document.getElementById('picker-2').innerHTML = pose(withDumbbells(FIGURES[5]).start, 48);
+      document.getElementById('card-1').innerHTML = pose(FIGURES[0].start, 72);
+
+      // 插值动画：起始 ↔ 发力
+      const animatedHost = document.getElementById('animated');
+      const a = withDumbbells(FIGURES[4]).start;
+      const b = withDumbbells(FIGURES[4]).end;
+      const keys = Object.keys(a.points);
+      const lerpPoints = (t) => {
+        const points = {};
+        for (const key of keys) {
+          const from = a.points[key];
+          const to = b.points[key];
+          points[key] = [from[0] + (to[0] - from[0]) * t, from[1] + (to[1] - from[1]) * t];
+        }
+        return points;
+      };
+
+      const reduced = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+      const render = (t) => {
+        animatedHost.innerHTML = pose({ ...a, points: lerpPoints(t) }, 96);
+      };
+
+      if (reduced) {
+        render(0);
+      } else {
+        let phase = 0;
+        let direction = 1;
+        setInterval(() => {
+          phase = Math.min(1, Math.max(0, phase + direction * 0.04));
+          if (phase === 1) direction = -1;
+          if (phase === 0) direction = 1;
+          // 缓动一下，看起来不那么机械
+          render(phase * phase * (3 - 2 * phase));
+        }, 40);
+      }
+
+      document.getElementById('dsl').textContent = `// 一个动作 = 两个姿势的点 + 器材
+{
+  name: '哑铃侧平举',
+  start: {                        // 起始
+    points: { head: [50,16], neck: [50,26], hip: [50,56],
+              elbowL: [42,40], wristL: [40,54], ... },
+    dumbbells: [{ at: [40,56], dx: 5, dy: 0 }],
+  },
+  end:   { ... },                 // 发力（同样的键，坐标不同）
+}`;
+    </script>
+  </body>
+</html>

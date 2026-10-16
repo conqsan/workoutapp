@@ -1,0 +1,489 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>FitLog 动作图标 · 实心剪影样例</title>
+    <style>
+      :root {
+        color-scheme: light;
+        --ink: #37414f;
+        --context: #c6cdd8;
+        --accent: #16c6c6;
+      }
+      * {
+        box-sizing: border-box;
+      }
+      body {
+        background: #fff;
+        color: #0f172a;
+        font:
+          13px/1.6 -apple-system,
+          'Segoe UI',
+          'Microsoft YaHei',
+          sans-serif;
+        margin: 0;
+        padding: 20px 16px 40px;
+        width: 430px;
+      }
+      h1 {
+        font-size: 17px;
+        margin: 0 0 2px;
+      }
+      h2 {
+        font-size: 13px;
+        color: #334155;
+        margin: 24px 0 8px;
+      }
+      .muted {
+        color: #94a3b8;
+        font-size: 11px;
+        margin: 4px 0;
+      }
+      .grid {
+        display: grid;
+        gap: 8px;
+        grid-template-columns: repeat(3, 1fr);
+      }
+      .cell {
+        align-items: center;
+        background: #f8fafc;
+        border-radius: 14px;
+        display: flex;
+        flex-direction: column;
+        gap: 2px;
+        padding: 8px 6px 6px;
+      }
+      .cell span {
+        color: #64748b;
+        font-size: 11px;
+        text-align: center;
+      }
+      .sizes {
+        align-items: flex-end;
+        display: flex;
+        gap: 14px;
+      }
+      .sizes figure {
+        margin: 0;
+        text-align: center;
+      }
+      .sizes figcaption {
+        color: #94a3b8;
+        font-size: 10px;
+      }
+      .note {
+        background: #f1f5f9;
+        border-radius: 12px;
+        padding: 10px 12px;
+      }
+      li {
+        color: #475569;
+        font-size: 11px;
+        margin: 2px 0;
+      }
+    </style>
+  </head>
+  <body>
+    <h1>动作图标 · 实心剪影样例</h1>
+    <p class="muted">
+      照你给的参考图改的：深色实心人形（圆头 / 粗躯干 / 细一点的手脚）+ 青色方向箭头 + 简单器材。
+      全部内联 SVG，没有位图，每个图标约 0.6KB。
+    </p>
+
+    <h2>样例（按 App 里的默认动作画）</h2>
+    <div class="grid" id="grid"></div>
+
+    <h2>缩放检查</h2>
+    <div class="note">
+      <p class="muted" style="margin: 0 0 6px">
+        动作选择器里会用小尺寸，所以先看一眼 40px 还能不能认出来。
+      </p>
+      <div class="sizes" id="sizes"></div>
+    </div>
+
+    <h2>这一版改了什么</h2>
+    <ul>
+      <li>
+        <b>侧视只画靠镜头的一臂一腿</b>（卧推 / 深蹲 / 划船 / 卷腹 / 臀推 /
+        下压），不再两只手叠在一起
+      </li>
+      <li>躯干加粗、手脚收细，头和人形之间留出空隙，不再糊成一团</li>
+      <li>器材一律避开身体轮廓：杠铃画在身体外侧，配重块不压在手臂上</li>
+      <li>青色箭头改到轮廓外侧，不碰肢体</li>
+      <li>正面动作（引体 / 侧平举 / Y字）保留双手 —— 那边是对称的，两条手臂不会互相遮挡</li>
+    </ul>
+
+    <p class="muted">
+      还要你确认：<b>姿势准不准</b>。你说哪个别扭（比如「深蹲看着像硬拉」「卷腹的手看不清」），
+      我改坐标就行 —— 一个动作就是十几个数字，不用重画。
+    </p>
+
+    <script>
+      // 实心剪影：粗圆线 + 实心圆头。侧视动作用 hide 只留靠镜头的一侧。
+      const SEGMENTS = [
+        ['neck', 'hip'],
+        ['neck', 'elbowL'],
+        ['elbowL', 'wristL'],
+        ['neck', 'elbowR'],
+        ['elbowR', 'wristR'],
+        ['hip', 'kneeL'],
+        ['kneeL', 'ankleL'],
+        ['ankleL', 'toeL'],
+        ['hip', 'kneeR'],
+        ['kneeR', 'ankleR'],
+        ['ankleR', 'toeR'],
+      ];
+
+      const SIDE = ['elbowR', 'wristR', 'kneeR', 'ankleR', 'toeR'];
+
+      const INK = 'var(--ink)';
+      const CONTEXT = 'var(--context)';
+      const ACCENT = 'var(--accent)';
+      const LIMB = 9.5;
+      const TORSO = 13;
+      const HEAD_R = 9;
+
+      function limb(a, b, width = LIMB, color = INK) {
+        return `<line x1="${a[0]}" y1="${a[1]}" x2="${b[0]}" y2="${b[1]}" stroke="${color}" stroke-width="${width}" stroke-linecap="round" />`;
+      }
+
+      function prop(item) {
+        if (item.t === 'floor' || item.t === 'mat') {
+          return `<line x1="${item.x1}" y1="${item.y}" x2="${item.x2}" y2="${item.y}" stroke="${CONTEXT}" stroke-width="3" stroke-linecap="round" />`;
+        }
+        if (item.t === 'bench' || item.t === 'seat' || item.t === 'stack') {
+          const fill = item.t === 'stack' ? '#98a2b3' : INK;
+          return `<rect x="${item.x}" y="${item.y}" width="${item.w}" height="${item.h}" rx="${Math.min(5, item.h / 2)}" fill="${fill}" />`;
+        }
+        if (item.t === 'bar') {
+          const plates = item.plates === false;
+          const plateA = plates
+            ? ''
+            : `<circle cx="${item.a[0] - 3}" cy="${item.a[1]}" r="6.5" fill="${INK}" />`;
+          const plateB = plates
+            ? ''
+            : `<circle cx="${item.b[0] + 3}" cy="${item.b[1]}" r="6.5" fill="${INK}" />`;
+          return limb(item.a, item.b, 4.5) + plateA + plateB;
+        }
+        if (item.t === 'dumbbell') {
+          const [x, y] = item.at;
+          const dx = item.dx === undefined ? 0 : item.dx;
+          const dy = item.dy === undefined ? 6 : item.dy;
+          return (
+            limb([x - dx, y - dy], [x + dx, y + dy], 5.5) +
+            `<rect x="${x - dx - 4}" y="${y - dy - 4}" width="5" height="9" rx="2" fill="${INK}" />` +
+            `<rect x="${x + dx - 1}" y="${y + dy - 4}" width="5" height="9" rx="2" fill="${INK}" />`
+          );
+        }
+        if (item.t === 'cable') {
+          return limb(item.a, item.b, 2.5, '#98a2b3');
+        }
+        return '';
+      }
+
+      function arrow(from, to) {
+        const [x1, y1] = from;
+        const [x2, y2] = to;
+        const angle = Math.atan2(y2 - y1, x2 - x1);
+        const size = 7;
+        const tip = [x2, y2];
+        const back = [x2 - Math.cos(angle) * size, y2 - Math.sin(angle) * size];
+        const left = [
+          back[0] - Math.sin(angle) * size * 0.62,
+          back[1] + Math.cos(angle) * size * 0.62,
+        ];
+        const right = [
+          back[0] + Math.sin(angle) * size * 0.62,
+          back[1] - Math.cos(angle) * size * 0.62,
+        ];
+
+        return (
+          limb(
+            from,
+            [tip[0] - Math.cos(angle) * size * 0.6, tip[1] - Math.sin(angle) * size * 0.6],
+            5,
+            ACCENT,
+          ) + `<polygon points="${tip} ${left} ${right}" fill="${ACCENT}" />`
+        );
+      }
+
+      function icon(figure, size) {
+        const p = figure.points;
+        const hidden = new Set(figure.hide || []);
+        const body = SEGMENTS.filter(([a, b]) => !hidden.has(a) && !hidden.has(b))
+          .map(([a, b]) => (p[a] && p[b] ? limb(p[a], p[b]) : ''))
+          .join('');
+        const torso = p.neck && p.hip ? limb(p.neck, p.hip, TORSO) : '';
+        const head = p.head
+          ? `<circle cx="${p.head[0]}" cy="${p.head[1]}" r="${HEAD_R}" fill="${INK}" />`
+          : '';
+        const props = (figure.props || []).map(prop).join('');
+        const arrows = (figure.arrows || []).map(([a, b]) => arrow(a, b)).join('');
+
+        return (
+          `<svg viewBox="0 0 100 100" width="${size}" height="${size}">` +
+          `<g>${props}</g><g>${body}${torso}</g>${head}<g>${arrows}</g>` +
+          `</svg>`
+        );
+      }
+
+      // ---------------------------------------------------------------- 动作
+      const FIGURES = [
+        {
+          // 侧视：只画靠镜头的一臂一腿
+          name: '杠铃卧推',
+          hide: SIDE,
+          points: {
+            head: [24, 54],
+            neck: [36, 56],
+            hip: [60, 58],
+            elbowL: [40, 44],
+            wristL: [42, 30],
+            kneeL: [72, 66],
+            ankleL: [80, 80],
+            toeL: [88, 84],
+          },
+          props: [
+            { t: 'bench', x: 12, y: 64, w: 52, h: 9 },
+            { t: 'bar', a: [30, 28], b: [52, 28] },
+            { t: 'floor', y: 92, x1: 8, x2: 92 },
+          ],
+          arrows: [
+            [
+              [46, 18],
+              [46, 5],
+            ],
+          ],
+        },
+        {
+          name: '深蹲',
+          hide: SIDE,
+          points: {
+            head: [48, 20],
+            neck: [49, 32],
+            hip: [46, 56],
+            elbowL: [42, 46],
+            wristL: [44, 34],
+            kneeL: [63, 60],
+            ankleL: [57, 82],
+            toeL: [66, 86],
+          },
+          props: [
+            { t: 'bar', a: [36, 34], b: [58, 34] },
+            { t: 'floor', y: 90, x1: 8, x2: 92 },
+          ],
+          arrows: [
+            [
+              [26, 62],
+              [26, 44],
+            ],
+          ],
+        },
+        {
+          // 正面：两边对称，双手都画
+          name: '引体向上',
+          points: {
+            head: [50, 36],
+            neck: [50, 47],
+            hip: [50, 68],
+            elbowL: [42, 30],
+            wristL: [34, 16],
+            elbowR: [58, 30],
+            wristR: [66, 16],
+            kneeL: [45, 78],
+            ankleL: [44, 90],
+            toeL: [38, 93],
+            kneeR: [55, 78],
+            ankleR: [56, 90],
+            toeR: [62, 93],
+          },
+          props: [{ t: 'bar', a: [22, 16], b: [78, 16], plates: false }],
+          arrows: [
+            [
+              [14, 54],
+              [14, 34],
+            ],
+          ],
+        },
+        {
+          name: '杠铃划船',
+          hide: SIDE,
+          points: {
+            head: [28, 34],
+            neck: [39, 38],
+            hip: [62, 48],
+            elbowL: [42, 54],
+            wristL: [46, 72],
+            kneeL: [68, 62],
+            ankleL: [68, 84],
+            toeL: [76, 88],
+          },
+          props: [
+            { t: 'floor', y: 90, x1: 8, x2: 92 },
+            { t: 'bar', a: [34, 74], b: [56, 74] },
+          ],
+          arrows: [
+            [
+              [84, 66],
+              [84, 48],
+            ],
+          ],
+        },
+        {
+          name: '哑铃侧平举',
+          points: {
+            head: [50, 16],
+            neck: [50, 27],
+            hip: [50, 56],
+            elbowL: [36, 32],
+            wristL: [26, 30],
+            elbowR: [64, 32],
+            wristR: [74, 30],
+            kneeL: [45, 70],
+            ankleL: [44, 88],
+            toeL: [37, 91],
+            kneeR: [55, 70],
+            ankleR: [56, 88],
+            toeR: [63, 91],
+          },
+          props: [
+            { t: 'dumbbell', at: [20, 30], dx: 0, dy: 6 },
+            { t: 'dumbbell', at: [80, 30], dx: 0, dy: 6 },
+            { t: 'floor', y: 94, x1: 8, x2: 92 },
+          ],
+          arrows: [
+            [
+              [10, 46],
+              [10, 28],
+            ],
+            [
+              [90, 46],
+              [90, 28],
+            ],
+          ],
+        },
+        {
+          name: 'Y字侧平举',
+          points: {
+            head: [50, 18],
+            neck: [50, 29],
+            hip: [50, 56],
+            elbowL: [37, 22],
+            wristL: [28, 12],
+            elbowR: [63, 22],
+            wristR: [72, 12],
+            kneeL: [45, 70],
+            ankleL: [44, 88],
+            toeL: [37, 91],
+            kneeR: [55, 70],
+            ankleR: [56, 88],
+            toeR: [63, 91],
+          },
+          props: [
+            { t: 'dumbbell', at: [24, 8], dx: 0, dy: 6 },
+            { t: 'dumbbell', at: [76, 8], dx: 0, dy: 6 },
+            { t: 'floor', y: 94, x1: 8, x2: 92 },
+          ],
+          arrows: [
+            [
+              [16, 32],
+              [7, 18],
+            ],
+            [
+              [84, 32],
+              [93, 18],
+            ],
+          ],
+        },
+        {
+          name: '卷腹',
+          hide: SIDE,
+          points: {
+            head: [30, 52],
+            neck: [42, 58],
+            hip: [62, 68],
+            elbowL: [26, 44],
+            wristL: [30, 34],
+            kneeL: [74, 56],
+            ankleL: [82, 70],
+            toeL: [89, 72],
+          },
+          props: [{ t: 'mat', y: 88, x1: 8, x2: 92 }],
+          arrows: [
+            [
+              [16, 40],
+              [16, 24],
+            ],
+          ],
+        },
+        {
+          name: '臀推',
+          hide: SIDE,
+          points: {
+            head: [22, 44],
+            neck: [30, 48],
+            hip: [58, 50],
+            elbowL: [40, 44],
+            wristL: [50, 52],
+            kneeL: [72, 58],
+            ankleL: [76, 80],
+            toeL: [84, 84],
+          },
+          props: [
+            { t: 'bench', x: 6, y: 50, w: 26, h: 8 },
+            { t: 'bar', a: [44, 44], b: [66, 44] },
+            { t: 'floor', y: 88, x1: 8, x2: 92 },
+          ],
+          arrows: [
+            [
+              [58, 32],
+              [58, 14],
+            ],
+          ],
+        },
+        {
+          name: '绳索下压',
+          hide: SIDE,
+          points: {
+            head: [38, 18],
+            neck: [40, 29],
+            hip: [38, 56],
+            elbowL: [44, 40],
+            wristL: [62, 52],
+            kneeL: [40, 70],
+            ankleL: [40, 86],
+            toeL: [48, 89],
+          },
+          props: [
+            { t: 'stack', x: 78, y: 18, w: 16, h: 64 },
+            { t: 'cable', a: [86, 22], b: [64, 52] },
+            { t: 'bar', a: [58, 56], b: [70, 56], plates: false },
+            { t: 'floor', y: 92, x1: 8, x2: 92 },
+          ],
+          arrows: [
+            [
+              [66, 64],
+              [66, 78],
+            ],
+          ],
+        },
+      ];
+
+      const grid = document.getElementById('grid');
+      for (const figure of FIGURES) {
+        const cell = document.createElement('div');
+        cell.className = 'cell';
+        cell.innerHTML = icon(figure, 96) + '<span>' + figure.name + '</span>';
+        grid.appendChild(cell);
+      }
+
+      const sizes = document.getElementById('sizes');
+      for (const figure of [FIGURES[0], FIGURES[1], FIGURES[3], FIGURES[4], FIGURES[7]]) {
+        const figureElement = document.createElement('figure');
+        figureElement.innerHTML = icon(figure, 40) + '<figcaption>' + figure.name + '</figcaption>';
+        sizes.appendChild(figureElement);
+      }
+    </script>
+  </body>
+</html>

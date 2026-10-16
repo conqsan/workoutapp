@@ -19,7 +19,7 @@ import {
   computeExerciseTrend,
   computeStats,
   endOfWeek,
-  monthRange,
+  last30Range,
   startOfWeek,
 } from '../src/utils/stats';
 import { calculateTotalVolumeKg } from '../src/utils/weight';
@@ -204,36 +204,65 @@ check(
 );
 
 check(
-  '10 月是 10-01 ~ 10-31',
-  monthRange(NOW).start === '2026-10-01' && monthRange(NOW).end === '2026-10-31',
-  monthRange(NOW),
+  '近 30 天：2026-10-07 往前数到 09-08（含今天一共 30 天）',
+  last30Range(NOW).start === '2026-09-08' && last30Range(NOW).end === '2026-10-07',
+  last30Range(NOW),
 );
 check(
-  '平年 2 月是 28 天',
-  monthRange(new Date(2026, 1, 15)).end === '2026-02-28',
-  monthRange(new Date(2026, 1, 15)),
+  '这个窗口和大月小月无关：3 月 31 日往前是 03-02',
+  last30Range(new Date(2026, 2, 31)).start === '2026-03-02' &&
+    last30Range(new Date(2026, 2, 31)).end === '2026-03-31',
+  last30Range(new Date(2026, 2, 31)),
 );
 check(
-  '闰年 2 月是 29 天',
-  monthRange(new Date(2028, 1, 15)).end === '2028-02-29',
-  monthRange(new Date(2028, 1, 15)),
+  '跨年也对：2027-01-05 往前是 2026-12-07',
+  last30Range(new Date(2027, 0, 5)).start === '2026-12-07',
+  last30Range(new Date(2027, 0, 5)),
 );
-check('月末当天仍属于本月：2026-10-31', monthRange(new Date(2026, 9, 31)).end === '2026-10-31');
 
-section('[2] 训练次数：本周 / 本月 / 总计');
+section('[2] 训练次数：本周 / 近 30 天 / 总计');
 const stats = computeStats(WORKOUTS, NOW);
 check('总计 4 次（进行中的那次不算）', stats.totalWorkouts === 4, stats.totalWorkouts);
 check('进行中的训练被单独计数', stats.activeWorkoutCount === 1, stats.activeWorkoutCount);
 check('本周 2 次（10/6 和 10/7）', stats.weekWorkouts === 2, stats.weekWorkouts);
-check('本月 4 次（10/1、10/3、10/6、10/7）', stats.monthWorkouts === 4, stats.monthWorkouts);
+check(
+  '近 30 天 4 次（10/1、10/3、10/6、10/7 都在窗口内）',
+  stats.last30Workouts === 4,
+  stats.last30Workouts,
+);
 
-section('[3] 训练总量：今天 / 本周 / 本月');
+section('[2.5] 近 30 天的边界：第 30 天算，第 31 天不算');
+const edgeWorkout = makeWorkout('edge-in', '2026-09-08', 'completed', [
+  {
+    exerciseId: 'pullup',
+    exerciseName: '引体向上',
+    muscleName: '背',
+    sets: [{ weight: 0, reps: 10 }],
+  },
+]);
+const outsideWorkout = makeWorkout('edge-out', '2026-09-07', 'completed', [
+  {
+    exerciseId: 'pullup',
+    exerciseName: '引体向上',
+    muscleName: '背',
+    sets: [{ weight: 0, reps: 10 }],
+  },
+]);
+const edgeStats = computeStats([edgeWorkout, outsideWorkout], NOW);
+check('窗口左边界（09-08）算在内', edgeStats.last30Workouts === 1, edgeStats.last30Workouts);
+check(
+  '再往前一天（09-07）就不算了',
+  edgeStats.totalWorkouts === 2 && edgeStats.last30Workouts === 1,
+  edgeStats,
+);
+
+section('[3] 训练总量：今天 / 本周 / 近 30 天');
 // 10/7：85×5 + 30×12 = 425 + 360 = 785
 check('今天的训练总量 = 785kg', near(stats.todayVolume, 785), stats.todayVolume);
 // 本周：10/6 的 500 + 10/7 的 785 = 1285
 check('本周训练总量 = 1285kg', near(stats.weekVolume, 1285), stats.weekVolume);
-// 本月：800+640 + 600 + 500 + 785 = 3325
-check('本月训练总量 = 3325kg', near(stats.monthVolume, 3325), stats.monthVolume);
+// 近 30 天：800+640 + 600 + 500 + 785 = 3325
+check('近 30 天训练总量 = 3325kg', near(stats.last30Volume, 3325), stats.last30Volume);
 check('今天的量不会把进行中那次的 999×99 算进去', near(stats.todayVolume, 785), stats.todayVolume);
 
 section('[4] 各部位 / 各动作训练次数');
@@ -278,7 +307,7 @@ const emptyStats = computeStats([], NOW);
 check('次数全是 0', emptyStats.totalWorkouts === 0 && emptyStats.weekWorkouts === 0);
 check(
   '总量全是 0',
-  emptyStats.todayVolume === 0 && emptyStats.weekVolume === 0 && emptyStats.monthVolume === 0,
+  emptyStats.todayVolume === 0 && emptyStats.weekVolume === 0 && emptyStats.last30Volume === 0,
 );
 check(
   '部位 / 动作列表是空数组',

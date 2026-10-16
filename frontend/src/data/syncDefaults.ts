@@ -56,7 +56,7 @@ const defaultExerciseKeys = new Set(
 );
 const SYNC_VERSION_KEY = 'defaults-sync-version';
 /** 改动 shared/defaults 里「增删」时把这个数字 +1，老用户下次打开才会同步到 */
-const SYNC_VERSION = 4;
+const SYNC_VERSION = 5;
 
 /**
  * 合并可选单位：seed 里的是「官方顺序」，本地多出来的（用户自己加的）追加在后面。

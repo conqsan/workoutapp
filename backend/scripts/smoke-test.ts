@@ -122,7 +122,7 @@ async function main(): Promise<void> {
   const exercises = exerciseRes.json<SuccessBody<ExerciseDto[]>>();
 
   check('HTTP 200', exerciseRes.statusCode === 200, exerciseRes.statusCode);
-  check('默认动作已 seed（51 个）', exercises.data?.length === 51, exercises.data?.length);
+  check('默认动作已 seed（52 个）', exercises.data?.length === 52, exercises.data?.length);
   check(
     '新增的腿部动作都在（站姿倒蹬腿 / 坐姿蹬腿 / 坐姿髋内收 / 坐姿髋外展）',
     ['站姿倒蹬腿', '坐姿蹬腿', '坐姿髋内收', '坐姿髋外展'].every((name) =>

@@ -38,12 +38,14 @@ export interface MuscleExerciseGroup {
 export interface StatsSummary {
   totalWorkouts: number;
   weekWorkouts: number;
-  monthWorkouts: number;
+  /** 近 30 天（含今天）完成了几次训练 */
+  last30Workouts: number;
   /** 有几次训练还在进行中（没计入上面的统计） */
   activeWorkoutCount: number;
   todayVolume: number;
   weekVolume: number;
-  monthVolume: number;
+  /** 近 30 天（含今天）的训练总量 */
+  last30Volume: number;
   muscles: CountEntry[];
   /** 全部练过的动作，按训练次数倒序 —— 不截断，动作多了靠分组展示 */
   exercises: ExerciseCountEntry[];
@@ -129,12 +131,16 @@ export function endOfWeek(date: Date): string {
   return toDateKey(probe);
 }
 
-/** 当月第一天与最后一天（自动处理 2 月、大小月） */
-export function monthRange(date: Date): { start: string; end: string } {
-  return {
-    start: toDateKey(new Date(date.getFullYear(), date.getMonth(), 1)),
-    end: toDateKey(new Date(date.getFullYear(), date.getMonth() + 1, 0)),
-  };
+/**
+ * 近 30 天：从 29 天前到今天（含今天，一共 30 天）。
+ *
+ * 为什么不用「本月」：月初那几天「本月」只有一两次，看着像没练，容易误判；
+ * 滚动 30 天不管今天几号都是同一个尺子，更适合看「最近练得够不够」。
+ */
+export function last30Range(date: Date): { start: string; end: string } {
+  const start = startOfDay(date);
+  start.setDate(start.getDate() - 29);
+  return { start: toDateKey(start), end: toDateKey(date) };
 }
 
 /**
@@ -177,16 +183,16 @@ export function computeStats(
 ): StatsSummary {
   const weekStart = startOfWeek(now);
   const weekEnd = endOfWeek(now);
-  const month = monthRange(now);
+  const last30 = last30Range(now);
   const today = toDateKey(now);
 
   let totalWorkouts = 0;
   let weekWorkouts = 0;
-  let monthWorkouts = 0;
+  let last30Workouts = 0;
   let activeWorkoutCount = 0;
   let todayVolume = 0;
   let weekVolume = 0;
-  let monthVolume = 0;
+  let last30Volume = 0;
 
   const muscleMap = new Map<string, CountEntry>();
   const exerciseMap = new Map<string, ExerciseCountEntry>();
@@ -202,16 +208,16 @@ export function computeStats(
     totalWorkouts += 1;
 
     const inWeek = within(workout.date, weekStart, weekEnd);
-    const inMonth = within(workout.date, month.start, month.end);
+    const inLast30 = within(workout.date, last30.start, last30.end);
     const volume = workoutVolume(workout);
 
     if (inWeek) {
       weekWorkouts += 1;
       weekVolume += volume;
     }
-    if (inMonth) {
-      monthWorkouts += 1;
-      monthVolume += volume;
+    if (inLast30) {
+      last30Workouts += 1;
+      last30Volume += volume;
     }
     if (workout.date === today) {
       todayVolume += volume;
@@ -282,11 +288,11 @@ export function computeStats(
   return {
     totalWorkouts,
     weekWorkouts,
-    monthWorkouts,
+    last30Workouts,
     activeWorkoutCount,
     todayVolume,
     weekVolume,
-    monthVolume,
+    last30Volume,
     muscles,
     exercises: [...exerciseMap.values()].sort(byCountThenName),
     exerciseGroups,

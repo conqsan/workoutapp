@@ -8,7 +8,7 @@
  *   - 今天第 1 次：胸 杠铃卧推 80×10 + 80×8  → 1440kg
  *   - 今天第 2 次：肩 哑铃侧平举 10×12       → 120kg
  *   - 60 天前：胸 杠铃卧推 70×10             → 700kg
- * 60 天前一定不在本周、也不在本月，所以「本周 / 本月」都是今天的 2 次、合计 1560kg。
+ * 60 天前一定不在本周、也不在近 30 天，所以「本周 / 近 30 天」都是今天的 2 次、合计 1560kg。
  * 注意：normalizeNumberText 会去掉千分位逗号，比较时用不带逗号的写法。
  * 界面上的日期边界数学由 scripts/stats-test.ts 用固定日期单独测。
  */
@@ -70,7 +70,7 @@ async function main() {
     });
     check(`60 天前（${pastDate}）的卧推已补记`, true);
 
-    section('[2] 训练次数：本周 / 本月');
+    section('[2] 训练次数：本周 / 近 30 天');
     await page.goto(`${BASE_URL}/stats`, { waitUntil: 'domcontentloaded' });
     await waitFor(page, 'stat-week-workouts', undefined, 15_000);
 
@@ -80,16 +80,16 @@ async function main() {
       await textOf(page, 'stat-week-workouts'),
     );
     check(
-      '本月 2 次（60 天前那次不在本月）',
-      (await textOf(page, 'stat-month-workouts')).includes('2'),
-      await textOf(page, 'stat-month-workouts'),
+      '近 30 天 2 次（60 天前那次不在窗口内）',
+      (await textOf(page, 'stat-last30-workouts')).includes('2'),
+      await textOf(page, 'stat-last30-workouts'),
     );
     check(
       '合计已完成 3 次训练（含 60 天前那次）',
       (await page.evaluate(() => document.body.innerText)).includes('3 次训练'),
     );
 
-    section('[3] 训练总量：今天 / 本周 / 本月');
+    section('[3] 训练总量：今天 / 本周 / 近 30 天');
     // 今天：80×10 + 80×8 + 10×12 = 800 + 640 + 120 = 1560
     check(
       '今天的训练总量 = 1,560 kg',
@@ -102,9 +102,9 @@ async function main() {
       await textOf(page, 'stat-week-volume'),
     );
     check(
-      '本月训练总量 = 1,560 kg',
-      normalizeNumberText(await textOf(page, 'stat-month-volume')).includes('1560kg'),
-      await textOf(page, 'stat-month-volume'),
+      '近 30 天训练总量 = 1,560 kg',
+      normalizeNumberText(await textOf(page, 'stat-last30-volume')).includes('1560kg'),
+      await textOf(page, 'stat-last30-volume'),
     );
 
     section('[4] 各部位 / 各动作训练次数');
