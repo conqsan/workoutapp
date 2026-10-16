@@ -410,6 +410,17 @@ function validateExercise(raw: unknown, path: string, issues: IssueList): Exerci
     weightSlots = rawSlots;
   }
 
+  // mediaRef 是 v6 才有的字段（示范图编号）：老备份没有，按 null 兜底
+  const rawMediaRef = raw.mediaRef;
+  let mediaRef: string | null = null;
+  if (rawMediaRef !== undefined && rawMediaRef !== null) {
+    if (typeof rawMediaRef !== 'string') {
+      issues.add(`${path}.mediaRef 必须是字符串或 null`);
+      return null;
+    }
+    mediaRef = rawMediaRef.trim().length > 0 ? rawMediaRef.trim() : null;
+  }
+
   if (
     id === null ||
     name === null ||
@@ -427,6 +438,7 @@ function validateExercise(raw: unknown, path: string, issues: IssueList): Exerci
     description: typeof description === 'string' ? description : null,
     isCustom,
     weightSlots,
+    mediaRef,
     sortOrder,
   };
 }

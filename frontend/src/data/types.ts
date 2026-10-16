@@ -31,6 +31,13 @@ export interface Exercise {
    */
   weightSlots: number;
   /**
+   * 动作示范图的编号：对应 `public/exercises/<mediaRef>.jpg` 与 `.gif`，
+   * 来源是 shared/defaults/exercises.json 里的 `ref`（Exercises Dataset 的 id）。
+   * 自定义动作没有示范图，这里是 null。
+   * v6 之前的本地数据没有这个字段，读的时候按 null 兜底。
+   */
+  mediaRef: string | null;
+  /**
    * 仅本地使用：决定动作在列表里的先后。
    * 默认动作用 seed 里的书写顺序（卧推 → 上斜 → 下斜…），自定义动作排在最后。
    */

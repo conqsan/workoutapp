@@ -1,0 +1,33 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256" width="256" height="256">
+  <!--
+    FitLog - MASTER HUMAN REFERENCE
+    A vector trace of ONE figure taken from the original reference sheet
+    (that sheet is the only authoritative style source): sheet cell row 1 /
+    column 2 - front standing, arms out.
+
+    Every number is a measurement of that figure, in reference pixels, carried
+    over unchanged.  Scale up is uniform, so the ratios are the reference's:
+      head diameter         37.49
+      shoulder width        92.48      (widest point of the body)
+      trunk width           53.79      (below the armpit crease)
+      arm stroke            18.56      (thinner than the legs, as in the reference)
+      leg stroke            21.47
+      hand-tip to hand-tip  166.82
+      figure height         220   = 5.87 head-heights
+
+    Colour #3F3F3F on a transparent background.  No second colour, no text,
+    no equipment, no arrows.  Only the human silhouette.
+  -->
+  <g fill="#3F3F3F">
+    <circle cx="128" cy="36.74" r="18.74" />
+    <path d="M 128 59.7 C 153.54 59.7 174.24 79.99 174.24 105.02 C 174.24 108.35 164.53 112.37 154.89 112.37 L 154.89 151.18 C 154.89 155.6 150.08 157.6 145.66 157.6 L 110.34 157.6 C 105.92 157.6 101.11 155.6 101.11 151.18 L 101.11 112.37 C 91.47 112.37 81.76 108.35 81.76 105.02 C 81.76 79.99 102.46 59.7 128 59.7 Z" />
+  </g>
+  <g fill="none" stroke="#3F3F3F" stroke-width="18.56"
+     stroke-linecap="round" stroke-linejoin="round">
+    <path d="M 113.95 115.5 L 53.87 115.5" /><path d="M 142.05 115.5 L 202.13 115.5" />
+  </g>
+  <g fill="none" stroke="#3F3F3F" stroke-width="21.47"
+     stroke-linecap="round" stroke-linejoin="round">
+    <path d="M 113.15 134.36 L 113.15 227.26" /><path d="M 142.85 134.36 L 142.85 227.26" />
+  </g>
+</svg>

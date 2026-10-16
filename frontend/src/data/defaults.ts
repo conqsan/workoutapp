@@ -31,6 +31,15 @@ export function normalizeWeightSlots(exercise: { weightSlots?: number | undefine
   return typeof slots === 'number' && Number.isFinite(slots) && slots > 1 ? Math.trunc(slots) : 1;
 }
 
+/**
+ * 示范图编号：JSON 里没写 `ref` 的默认动作就没有示范图。
+ * v6 之前的本地数据也没有这个字段，统一按 null 兜底。
+ */
+export function normalizeMediaRef(exercise: { ref?: string | undefined }): string | null {
+  const ref = exercise.ref;
+  return typeof ref === 'string' && ref.trim().length > 0 ? ref.trim() : null;
+}
+
 const muscleIdByName = new Map(DEFAULT_MUSCLES.map((muscle) => [muscle.name, muscle.id]));
 
 export const DEFAULT_EXERCISES: readonly Exercise[] = exercisesJson.map((exercise, index) => {
@@ -47,6 +56,7 @@ export const DEFAULT_EXERCISES: readonly Exercise[] = exercisesJson.map((exercis
     description: null,
     isCustom: false,
     weightSlots: normalizeWeightSlots(exercise),
+    mediaRef: normalizeMediaRef(exercise),
     sortOrder: index,
   };
 });

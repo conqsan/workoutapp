@@ -272,6 +272,8 @@ export function createLocalRepository(): FitLogRepository {
       isCustom: true,
       // 递减组只出现在默认动作里，用户自建的动作都是普通动作
       weightSlots: 1,
+      // 示范图只有默认动作有
+      mediaRef: null,
       // 自定义动作排在默认动作后面
       sortOrder: 10_000 + (Date.now() % 10_000),
     };

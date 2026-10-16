@@ -149,6 +149,12 @@ export function WorkoutPage(): ReactElement {
     [exercises],
   );
 
+  /** 动作 id → 示范图编号，同样从动作表里查 */
+  const mediaRefByExerciseId = useMemo(
+    () => new Map(exercises.map((exercise) => [exercise.id, exercise.mediaRef])),
+    [exercises],
+  );
+
   const handlePick = useCallback(
     (exerciseId: string) => {
       setPickerOpen(false);
@@ -326,6 +332,7 @@ export function WorkoutPage(): ReactElement {
           index={index}
           total={workout.exercises.length}
           weightSlots={weightSlotsByExerciseId.get(entry.exerciseId) ?? 1}
+          mediaRef={mediaRefByExerciseId.get(entry.exerciseId) ?? null}
           lastWorkout={lastWorkouts[entry.exerciseId]}
           disabled={saving}
           expanded={expandedId === entry.id}

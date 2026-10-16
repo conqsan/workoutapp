@@ -2,7 +2,12 @@ import exercisesJson from '@shared/defaults/exercises.json';
 import musclesJson from '@shared/defaults/muscles.json';
 import supplementsJson from '@shared/defaults/supplements.json';
 import { getAll, get, put, remove, Store, type MetaRow } from './db';
-import { ensureDefaultsSeeded, normalizeUnits, normalizeWeightSlots } from './defaults';
+import {
+  ensureDefaultsSeeded,
+  normalizeMediaRef,
+  normalizeUnits,
+  normalizeWeightSlots,
+} from './defaults';
 import { createId } from './ids';
 import type { Exercise, Muscle, Supplement, WorkoutExercise } from './types';
 
@@ -32,6 +37,8 @@ interface ExerciseSeed {
   name: string;
   /** 一组显示几个重量框（递减组 > 1），不写就是 1 */
   weightSlots?: number;
+  /** 示范图编号（Exercises Dataset 的 id），不写就是没有示范图 */
+  ref?: string;
 }
 
 interface SupplementSeed {
@@ -56,7 +63,7 @@ const defaultExerciseKeys = new Set(
 );
 const SYNC_VERSION_KEY = 'defaults-sync-version';
 /** 改动 shared/defaults 里「增删」时把这个数字 +1，老用户下次打开才会同步到 */
-const SYNC_VERSION = 5;
+const SYNC_VERSION = 6;
 
 /**
  * 合并可选单位：seed 里的是「官方顺序」，本地多出来的（用户自己加的）追加在后面。
@@ -112,13 +119,20 @@ async function mergeMissingDefaults(): Promise<void> {
 
   for (const [index, seed] of exerciseSeeds.entries()) {
     const slots = normalizeWeightSlots(seed);
+    const mediaRef = normalizeMediaRef(seed);
     const existing = exerciseByKey.get(exerciseKey(seed.muscle, seed.name));
 
     if (existing) {
       // 老设备上的动作没有 weightSlots（v4 之前），或者 JSON 里改了段数 —— 只补默认动作，
       // 用户自己建的动作不动
-      if (!existing.isCustom && normalizeWeightSlots(existing) !== slots) {
-        await put(Store.exercises, { ...existing, weightSlots: slots });
+      if (existing.isCustom) continue;
+
+      // v6 补示范图编号：老数据没有这个字段，JSON 里新加了 / 改了 ref 也要跟着更新
+      const patch: { weightSlots?: number; mediaRef?: string | null } = {};
+      if (normalizeWeightSlots(existing) !== slots) patch.weightSlots = slots;
+      if ((existing.mediaRef ?? null) !== mediaRef) patch.mediaRef = mediaRef;
+      if (Object.keys(patch).length > 0) {
+        await put(Store.exercises, { ...existing, ...patch });
       }
       continue;
     }
@@ -136,6 +150,7 @@ async function mergeMissingDefaults(): Promise<void> {
       description: null,
       isCustom: false,
       weightSlots: slots,
+      mediaRef,
       sortOrder: index,
     } satisfies Exercise);
   }

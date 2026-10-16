@@ -45,3 +45,14 @@ export type {
 } from './backup';
 
 export type * from './types';
+
+/**
+ * 动作示范图（Exercises Dataset 的静态素材）。
+ * 纯函数 + 常量，没有状态，UI 可以直接 import。
+ */
+export {
+  MEDIA_ATTRIBUTION,
+  MEDIA_ATTRIBUTION_URL,
+  exerciseGifUrl,
+  exerciseImageUrl,
+} from './exerciseMedia';

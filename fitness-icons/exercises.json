@@ -1,0 +1,329 @@
+[
+  {
+    "id": "barbell_back_squat",
+    "name": "杠铃深蹲",
+    "name_en": "Barbell Back Squat",
+    "category": "legs",
+    "primary_muscle": "quadriceps",
+    "secondary_muscles": ["glutes", "hamstrings", "erector_spinae"],
+    "equipment": "barbell",
+    "movement_type": "compound",
+    "view": "side",
+    "icon": "barbell_back_squat.svg",
+    "pose": {
+      "hide": ["elbowR", "wristR", "kneeR", "ankleR", "toeR"],
+      "points": {
+        "head": [112, 52],
+        "neck": [114, 78],
+        "hip": [104, 132],
+        "elbowL": [90, 110],
+        "wristL": [96, 82],
+        "kneeL": [158, 166],
+        "ankleL": [144, 222],
+        "toeL": [170, 228]
+      },
+      "props": [
+        { "type": "barbell", "from": [86, 76], "to": [150, 76] },
+        { "type": "floor", "y": 228 }
+      ],
+      "arrows": [{ "from": [54, 120], "to": [54, 176], "heads": "both" }]
+    }
+  },
+  {
+    "id": "barbell_bench_press",
+    "name": "杠铃卧推",
+    "name_en": "Barbell Bench Press",
+    "category": "chest",
+    "primary_muscle": "pectoralis_major",
+    "secondary_muscles": ["anterior_deltoid", "triceps"],
+    "equipment": "barbell",
+    "movement_type": "compound",
+    "view": "side",
+    "icon": "barbell_bench_press.svg",
+    "pose": {
+      "hide": ["elbowR", "wristR", "kneeR", "ankleR", "toeR"],
+      "points": {
+        "head": [86, 151],
+        "neck": [112, 157],
+        "hip": [164, 161],
+        "elbowL": [140, 145],
+        "wristL": [132, 111],
+        "kneeL": [186, 184],
+        "ankleL": [198, 218],
+        "toeL": [220, 226]
+      },
+      "props": [
+        { "type": "bench", "x": 58, "y": 166, "w": 124, "h": 18, "legs": 228 },
+        { "type": "barbell", "from": [104, 107], "to": [160, 107] },
+        { "type": "floor", "y": 228 }
+      ],
+      "arrows": [{ "from": [132, 89], "to": [132, 31], "heads": "both" }]
+    }
+  },
+  {
+    "id": "conventional_deadlift",
+    "name": "传统硬拉",
+    "name_en": "Conventional Deadlift",
+    "category": "legs",
+    "primary_muscle": "hamstrings",
+    "secondary_muscles": ["glutes", "erector_spinae", "quadriceps", "forearms"],
+    "equipment": "barbell",
+    "movement_type": "compound",
+    "view": "side",
+    "icon": "conventional_deadlift.svg",
+    "pose": {
+      "hide": ["elbowR", "wristR", "kneeR", "ankleR", "toeR"],
+      "points": {
+        "head": [78, 88],
+        "neck": [96, 96],
+        "hip": [140, 116],
+        "elbowL": [96, 140],
+        "wristL": [94, 174],
+        "kneeL": [122, 160],
+        "ankleL": [118, 214],
+        "toeL": [92, 220]
+      },
+      "props": [
+        { "type": "barbell", "from": [62, 178], "to": [108, 178] },
+        { "type": "floor", "y": 228 }
+      ],
+      "arrows": [{ "from": [178, 164], "to": [178, 108] }]
+    }
+  },
+  {
+    "id": "lat_pulldown",
+    "name": "高位下拉",
+    "name_en": "Lat Pulldown",
+    "category": "back",
+    "primary_muscle": "latissimus_dorsi",
+    "secondary_muscles": ["biceps_brachii", "rhomboids", "posterior_deltoid"],
+    "equipment": "cable_machine",
+    "movement_type": "compound",
+    "view": "front",
+    "view_note": "规格里写的是 front 3/4；这种无脸剪影风格下正面 + 器械在后方最清楚，所以按正面画",
+    "icon": "lat_pulldown.svg",
+    "pose": {
+      "points": {
+        "head": [128, 94],
+        "neck": [128, 120],
+        "hip": [128, 178],
+        "elbowL": [96, 94],
+        "wristL": [96, 66],
+        "elbowR": [160, 94],
+        "wristR": [160, 66],
+        "kneeL": [102, 194],
+        "ankleL": [100, 218],
+        "toeL": [94, 230],
+        "kneeR": [154, 194],
+        "ankleR": [156, 218],
+        "toeR": [162, 230]
+      },
+      "props": [
+        {
+          "type": "cable-machine",
+          "x": 202,
+          "y": 58,
+          "w": 20,
+          "h": 170,
+          "pulleyY": 72,
+          "cableTo": [128, 72]
+        },
+        { "type": "bar", "from": [86, 72], "to": [174, 72], "width": 9 },
+        { "type": "bar", "from": [92, 198], "to": [164, 198], "width": 10 },
+        { "type": "seat", "x": 100, "y": 182, "w": 56, "h": 12 },
+        { "type": "floor", "y": 228 }
+      ],
+      "arrows": [{ "from": [72, 106], "to": [72, 162], "heads": "both" }]
+    }
+  },
+  {
+    "id": "dumbbell_biceps_curl",
+    "name": "哑铃弯举",
+    "name_en": "Dumbbell Biceps Curl",
+    "category": "arms",
+    "primary_muscle": "biceps_brachii",
+    "secondary_muscles": ["brachialis", "forearms"],
+    "equipment": "dumbbell",
+    "movement_type": "isolation",
+    "view": "front",
+    "icon": "dumbbell_biceps_curl.svg",
+    "pose": {
+      "points": {
+        "head": [128, 35],
+        "neck": [128, 61],
+        "hip": [128, 135],
+        "elbowL": [104, 108],
+        "wristL": [108, 64],
+        "elbowR": [152, 108],
+        "wristR": [148, 64],
+        "kneeL": [118, 180],
+        "ankleL": [114, 220],
+        "toeL": [96, 226],
+        "kneeR": [138, 180],
+        "ankleR": [142, 220],
+        "toeR": [160, 226]
+      },
+      "props": [
+        { "type": "dumbbell", "at": [108, 64], "angle": 0 },
+        { "type": "dumbbell", "at": [148, 64], "angle": 0 },
+        { "type": "floor", "y": 228 }
+      ],
+      "arrows": [{ "from": [76, 126], "to": [76, 68], "heads": "both" }]
+    }
+  },
+  {
+    "id": "dumbbell_lateral_raise",
+    "name": "哑铃侧平举",
+    "name_en": "Dumbbell Lateral Raise",
+    "category": "shoulders",
+    "primary_muscle": "lateral_deltoid",
+    "secondary_muscles": ["supraspinatus", "trapezius"],
+    "equipment": "dumbbell",
+    "movement_type": "isolation",
+    "view": "front",
+    "icon": "dumbbell_lateral_raise.svg",
+    "pose": {
+      "points": {
+        "head": [128, 35],
+        "neck": [128, 61],
+        "hip": [128, 135],
+        "elbowL": [96, 70],
+        "wristL": [56, 62],
+        "elbowR": [160, 70],
+        "wristR": [200, 62],
+        "kneeL": [118, 180],
+        "ankleL": [114, 220],
+        "toeL": [96, 226],
+        "kneeR": [138, 180],
+        "ankleR": [142, 220],
+        "toeR": [160, 226]
+      },
+      "props": [
+        { "type": "dumbbell", "at": [56, 62], "angle": 90 },
+        { "type": "dumbbell", "at": [200, 62], "angle": 90 },
+        { "type": "floor", "y": 228 }
+      ],
+      "arrows": [
+        { "from": [46, 138], "to": [22, 88] },
+        { "from": [210, 138], "to": [234, 88] }
+      ]
+    }
+  },
+  {
+    "id": "push_up",
+    "name": "俯卧撑",
+    "name_en": "Push-up",
+    "category": "chest",
+    "primary_muscle": "pectoralis_major",
+    "secondary_muscles": ["triceps", "anterior_deltoid", "core"],
+    "equipment": "bodyweight",
+    "movement_type": "compound",
+    "view": "side",
+    "icon": "push_up.svg",
+    "pose": {
+      "hide": ["elbowR", "wristR", "kneeR", "ankleR", "toeR"],
+      "points": {
+        "head": [86, 141],
+        "neck": [112, 150],
+        "hip": [162, 167],
+        "elbowL": [136, 188],
+        "wristL": [124, 222],
+        "kneeL": [192, 177],
+        "ankleL": [214, 185],
+        "toeL": [226, 222]
+      },
+      "props": [{ "type": "floor", "y": 228 }],
+      "arrows": [{ "from": [152, 96], "to": [152, 154], "heads": "both" }]
+    }
+  },
+  {
+    "id": "plank",
+    "name": "平板支撑",
+    "name_en": "Plank",
+    "category": "core",
+    "primary_muscle": "rectus_abdominis",
+    "secondary_muscles": ["transverse_abdominis", "glutes", "shoulders"],
+    "equipment": "bodyweight",
+    "movement_type": "static",
+    "view": "side",
+    "icon": "plank.svg",
+    "pose": {
+      "hide": ["elbowR", "wristR", "kneeR", "ankleR", "toeR"],
+      "points": {
+        "head": [86, 150],
+        "neck": [112, 158],
+        "hip": [168, 175],
+        "elbowL": [112, 222],
+        "wristL": [148, 222],
+        "kneeL": [198, 185],
+        "ankleL": [220, 193],
+        "toeL": [226, 224]
+      },
+      "props": [{ "type": "floor", "y": 228 }],
+      "arrows": []
+    }
+  },
+  {
+    "id": "leg_press",
+    "name": "腿举",
+    "name_en": "Leg Press",
+    "category": "legs",
+    "primary_muscle": "quadriceps",
+    "secondary_muscles": ["glutes", "hamstrings"],
+    "equipment": "leg_press_machine",
+    "movement_type": "compound",
+    "view": "side",
+    "view_note": "规格里写的是 side 3/4；腿举用纯侧视才能看出「蹬出去」，所以按侧视画",
+    "icon": "leg_press.svg",
+    "pose": {
+      "hide": ["elbowR", "wristR", "kneeR", "ankleR", "toeR"],
+      "points": {
+        "head": [89, 100],
+        "neck": [100, 124],
+        "hip": [124, 176],
+        "elbowL": [88, 152],
+        "wristL": [80, 186],
+        "kneeL": [156, 140],
+        "ankleL": [190, 126],
+        "toeL": [204, 110]
+      },
+      "props": [
+        { "type": "backrest", "x": 54, "y": 78, "w": 22, "h": 92 },
+        { "type": "seat", "x": 62, "y": 168, "w": 78, "h": 18 },
+        { "type": "bar", "from": [182, 100], "to": [206, 178], "width": 11 },
+        { "type": "floor", "y": 232 }
+      ],
+      "arrows": [{ "from": [150, 196], "to": [204, 172], "heads": "both" }]
+    }
+  },
+  {
+    "id": "kettlebell_swing",
+    "name": "壶铃摆动",
+    "name_en": "Kettlebell Swing",
+    "category": "full_body",
+    "primary_muscle": "glutes",
+    "secondary_muscles": ["hamstrings", "erector_spinae", "posterior_deltoid"],
+    "equipment": "kettlebell",
+    "movement_type": "compound",
+    "view": "side",
+    "icon": "kettlebell_swing.svg",
+    "pose": {
+      "hide": ["elbowR", "wristR", "kneeR", "ankleR", "toeR"],
+      "points": {
+        "head": [92, 88],
+        "neck": [112, 98],
+        "hip": [150, 126],
+        "elbowL": [124, 136],
+        "wristL": [148, 178],
+        "kneeL": [166, 168],
+        "ankleL": [162, 220],
+        "toeL": [188, 226]
+      },
+      "props": [
+        { "type": "kettlebell", "at": [160, 198], "r": 15 },
+        { "type": "floor", "y": 228 }
+      ],
+      "arrows": [{ "from": [190, 202], "to": [206, 148], "curve": [226, 172] }]
+    }
+  }
+]

@@ -6,7 +6,7 @@
  */
 
 const DB_NAME = 'fitlog';
-const DB_VERSION = 6;
+const DB_VERSION = 7;
 
 export const Store = {
   meta: 'meta',
@@ -139,6 +139,20 @@ export function openDatabase(): Promise<IDBDatabase> {
           if (!cursor) return;
           const row = cursor.value as { dropReps?: unknown };
           if (!Array.isArray(row.dropReps)) cursor.update({ ...row, dropReps: [] });
+          cursor.continue();
+        };
+      }
+
+      // v6 -> v7：动作增加「示范图编号」。
+      // 这里只把字段补成 null 让存储形状统一，真正的编号由 syncDefaults 按
+      // shared/defaults/exercises.json 里的 ref 填（那里才知道每个动作该用哪张图）。
+      if (previousVersion > 0 && previousVersion < 7 && upgradeTx) {
+        const exerciseCursor = upgradeTx.objectStore(Store.exercises).openCursor();
+        exerciseCursor.onsuccess = () => {
+          const cursor = exerciseCursor.result;
+          if (!cursor) return;
+          const row = cursor.value as { mediaRef?: unknown };
+          if (typeof row.mediaRef !== 'string') cursor.update({ ...row, mediaRef: null });
           cursor.continue();
         };
       }

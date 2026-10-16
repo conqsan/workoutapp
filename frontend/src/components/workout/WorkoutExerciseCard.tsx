@@ -1,11 +1,14 @@
 import { useEffect, useRef, useState, type ReactElement } from 'react';
 import { SetRow } from './SetRow';
-import type {
-  LastWorkoutSummary,
-  WorkoutExerciseWithSets,
-  WorkoutSet,
-  WorkoutSetInput,
-  WorkoutSetPatch,
+import {
+  MEDIA_ATTRIBUTION,
+  MEDIA_ATTRIBUTION_URL,
+  exerciseGifUrl,
+  type LastWorkoutSummary,
+  type WorkoutExerciseWithSets,
+  type WorkoutSet,
+  type WorkoutSetInput,
+  type WorkoutSetPatch,
 } from '@/data';
 import { cn } from '@/utils/cn';
 import { formatVolume } from '@/utils/format';
@@ -34,6 +37,8 @@ export interface WorkoutExerciseCardProps {
   total: number;
   /** 这个动作一组显示几个重量框（递减组是 3） */
   weightSlots: number;
+  /** 示范图编号（Exercises Dataset）；自定义动作是 null */
+  mediaRef: string | null;
   lastWorkout: LastWorkoutSummary | null | undefined;
   disabled: boolean;
   /** 手风琴：同一时间只展开一个动作，避免页面无限往下堆 */
@@ -63,6 +68,7 @@ export function WorkoutExerciseCard({
   index,
   total,
   weightSlots,
+  mediaRef,
   lastWorkout,
   disabled,
   expanded,
@@ -110,6 +116,7 @@ export function WorkoutExerciseCard({
 
   // 每一段都换算成 kg 再累加（递减组、lb 记录都要算对）
   const volume = calculateTotalVolumeKg(entry.sets);
+  const demoGif = exerciseGifUrl(mediaRef);
   const lastSet = entry.sets[entry.sets.length - 1];
   /** 没有明确选中时，默认编辑最后一组 */
   const activeSet =
@@ -243,6 +250,37 @@ export function WorkoutExerciseCard({
                 </button>
               </div>
             </div>
+          ) : null}
+
+          {/*
+            动作示范（Exercises Dataset，180×180 循环动画）。
+            只在展开时加载 —— 图比整张卡片还大，折叠状态下不该占流量。
+            素材 © Gym visual，署名必须保留。
+          */}
+          {demoGif ? (
+            <figure className="flex items-center gap-3 rounded-xl bg-slate-50 px-3 py-2.5">
+              <img
+                src={demoGif}
+                alt={`${entry.exerciseName} 动作示范`}
+                width={112}
+                height={112}
+                loading="lazy"
+                decoding="async"
+                data-testid="exercise-demo"
+                className="h-28 w-28 shrink-0 rounded-lg bg-white object-contain ring-1 ring-slate-200"
+              />
+              <figcaption className="min-w-0 flex-1 text-sm font-medium leading-relaxed text-slate-600">
+                动作示范
+                <a
+                  href={MEDIA_ATTRIBUTION_URL}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="mt-1.5 block text-[11px] font-normal text-slate-400 underline"
+                >
+                  {MEDIA_ATTRIBUTION}
+                </a>
+              </figcaption>
+            </figure>
           ) : null}
 
           {lastWorkout && lastWorkout.sets.length > 0 ? (

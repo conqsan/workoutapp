@@ -1,5 +1,5 @@
 import { useMemo, useState, type ReactElement } from 'react';
-import type { CreateExerciseInput, Exercise, Muscle } from '@/data';
+import { exerciseImageUrl, type CreateExerciseInput, type Exercise, type Muscle } from '@/data';
 import { cn } from '@/utils/cn';
 
 export interface ExercisePickerProps {
@@ -105,25 +105,45 @@ export function ExercisePicker({
         {visible.length === 0 ? (
           <p className="px-1 py-3 text-sm text-slate-500">没有匹配的动作，可以新建一个。</p>
         ) : (
-          visible.map((exercise) => (
-            <button
-              key={exercise.id}
-              type="button"
-              disabled={disabled}
-              data-testid="exercise-option"
-              data-name={exercise.name}
-              onClick={() => onPick(exercise.id)}
-              className="flex min-h-[48px] w-full items-center justify-between gap-2 rounded-xl px-3 text-left transition active:scale-[0.99] hover:bg-slate-50 disabled:opacity-50"
-            >
-              <span className="truncate text-[15px] font-medium text-slate-800">
-                {exercise.name}
-              </span>
-              <span className="shrink-0 text-xs text-slate-400">
-                {muscleNameById.get(exercise.muscleId) ?? ''}
-                {exercise.isCustom ? ' · 自定义' : ''}
-              </span>
-            </button>
-          ))
+          visible.map((exercise) => {
+            const image = exerciseImageUrl(exercise.mediaRef);
+            return (
+              <button
+                key={exercise.id}
+                type="button"
+                disabled={disabled}
+                data-testid="exercise-option"
+                data-name={exercise.name}
+                onClick={() => onPick(exercise.id)}
+                className="flex min-h-[56px] w-full items-center gap-3 rounded-xl px-2 py-1 text-left transition active:scale-[0.99] hover:bg-slate-50 disabled:opacity-50"
+              >
+                {/* 示范图（Exercises Dataset）：认动作比读文字快，48px 足够 */}
+                {image ? (
+                  <img
+                    src={image}
+                    alt=""
+                    width={48}
+                    height={48}
+                    loading="lazy"
+                    decoding="async"
+                    className="h-12 w-12 shrink-0 rounded-lg bg-slate-50 object-contain"
+                  />
+                ) : (
+                  <span
+                    aria-hidden="true"
+                    className="h-12 w-12 shrink-0 rounded-lg bg-slate-50 ring-1 ring-inset ring-slate-200"
+                  />
+                )}
+                <span className="min-w-0 flex-1 truncate text-[15px] font-medium text-slate-800">
+                  {exercise.name}
+                </span>
+                <span className="shrink-0 text-xs text-slate-400">
+                  {muscleNameById.get(exercise.muscleId) ?? ''}
+                  {exercise.isCustom ? ' · 自定义' : ''}
+                </span>
+              </button>
+            );
+          })
         )}
       </div>
 
