@@ -6,9 +6,7 @@
     "equipment": "barbell",
     "target": "pectorals",
     "category": "chest",
-    "mediaId": "EIeI8Vf",
-    "jpg": 8810,
-    "gif": 124389
+    "mediaId": "EIeI8Vf"
   },
   {
     "ref": "0047",
@@ -17,9 +15,7 @@
     "equipment": "barbell",
     "target": "pectorals",
     "category": "chest",
-    "mediaId": "3TZduzM",
-    "jpg": 8312,
-    "gif": 115409
+    "mediaId": "3TZduzM"
   },
   {
     "ref": "0033",
@@ -28,9 +24,7 @@
     "equipment": "barbell",
     "target": "pectorals",
     "category": "chest",
-    "mediaId": "GrO65fd",
-    "jpg": 8171,
-    "gif": 117929
+    "mediaId": "GrO65fd"
   },
   {
     "ref": "0289",
@@ -39,9 +33,7 @@
     "equipment": "dumbbell",
     "target": "pectorals",
     "category": "chest",
-    "mediaId": "SpYC0Kp",
-    "jpg": 8103,
-    "gif": 100673
+    "mediaId": "SpYC0Kp"
   },
   {
     "ref": "0314",
@@ -50,9 +42,7 @@
     "equipment": "dumbbell",
     "target": "pectorals",
     "category": "chest",
-    "mediaId": "ns0SIbU",
-    "jpg": 6054,
-    "gif": 82733
+    "mediaId": "ns0SIbU"
   },
   {
     "ref": "0301",
@@ -61,9 +51,7 @@
     "equipment": "dumbbell",
     "target": "pectorals",
     "category": "chest",
-    "mediaId": "DwhEmmE",
-    "jpg": 6672,
-    "gif": 88942
+    "mediaId": "DwhEmmE"
   },
   {
     "ref": "0596",
@@ -72,9 +60,7 @@
     "equipment": "leverage machine",
     "target": "pectorals",
     "category": "chest",
-    "mediaId": "v3xmPAR",
-    "jpg": 9018,
-    "gif": 121607
+    "mediaId": "v3xmPAR"
   },
   {
     "ref": "0227",
@@ -83,9 +69,7 @@
     "equipment": "cable",
     "target": "pectorals",
     "category": "chest",
-    "mediaId": "Pr9Rhf4",
-    "jpg": 6568,
-    "gif": 83348
+    "mediaId": "Pr9Rhf4"
   },
   {
     "ref": "0251",
@@ -94,9 +78,7 @@
     "equipment": "body weight",
     "target": "pectorals",
     "category": "chest",
-    "mediaId": "9WTm7dq",
-    "jpg": 6335,
-    "gif": 87629
+    "mediaId": "9WTm7dq"
   },
   {
     "ref": "0577",
@@ -105,9 +87,7 @@
     "equipment": "leverage machine",
     "target": "pectorals",
     "category": "chest",
-    "mediaId": "T0yTjgW",
-    "jpg": 9215,
-    "gif": 135362
+    "mediaId": "T0yTjgW"
   },
   {
     "ref": "0652",
@@ -116,9 +96,7 @@
     "equipment": "body weight",
     "target": "lats",
     "category": "back",
-    "mediaId": "lBDjFxJ",
-    "jpg": 5301,
-    "gif": 62671
+    "mediaId": "lBDjFxJ"
   },
   {
     "ref": "0150",
@@ -127,9 +105,7 @@
     "equipment": "cable",
     "target": "lats",
     "category": "back",
-    "mediaId": "eYnzaCm",
-    "jpg": 7245,
-    "gif": 87499
+    "mediaId": "eYnzaCm"
   },
   {
     "ref": "0245",
@@ -138,9 +114,7 @@
     "equipment": "cable",
     "target": "lats",
     "category": "back",
-    "mediaId": "xBYcQHj",
-    "jpg": 7449,
-    "gif": 91524
+    "mediaId": "xBYcQHj"
   },
   {
     "ref": "0027",
@@ -149,9 +123,7 @@
     "equipment": "barbell",
     "target": "upper back",
     "category": "back",
-    "mediaId": "eZyBC3j",
-    "jpg": 8106,
-    "gif": 100913
+    "mediaId": "eZyBC3j"
   },
   {
     "ref": "0606",
@@ -160,9 +132,7 @@
     "equipment": "leverage machine",
     "target": "upper back",
     "category": "back",
-    "mediaId": "aaXr7ld",
-    "jpg": 6282,
-    "gif": 81102
+    "mediaId": "aaXr7ld"
   },
   {
     "ref": "0861",
@@ -171,9 +141,7 @@
     "equipment": "cable",
     "target": "upper back",
     "category": "back",
-    "mediaId": "fUBheHs",
-    "jpg": 8466,
-    "gif": 103011
+    "mediaId": "fUBheHs"
   },
   {
     "ref": "0292",
@@ -182,9 +150,7 @@
     "equipment": "dumbbell",
     "target": "upper back",
     "category": "back",
-    "mediaId": "C0MA9bC",
-    "jpg": 8143,
-    "gif": 95696
+    "mediaId": "C0MA9bC"
   },
   {
     "ref": "0238",
@@ -193,9 +159,7 @@
     "equipment": "cable",
     "target": "lats",
     "category": "back",
-    "mediaId": "x69MAlq",
-    "jpg": 5089,
-    "gif": 63671
+    "mediaId": "x69MAlq"
   },
   {
     "ref": "0091",
@@ -204,9 +168,7 @@
     "equipment": "barbell",
     "target": "delts",
     "category": "shoulders",
-    "mediaId": "kTbSH9h",
-    "jpg": 6890,
-    "gif": 95708
+    "mediaId": "kTbSH9h"
   },
   {
     "ref": "0405",
@@ -215,9 +177,7 @@
     "equipment": "dumbbell",
     "target": "delts",
     "category": "shoulders",
-    "mediaId": "znQUdHY",
-    "jpg": 6540,
-    "gif": 87613
+    "mediaId": "znQUdHY"
   },
   {
     "ref": "0334",
@@ -226,20 +186,16 @@
     "equipment": "dumbbell",
     "target": "delts",
     "category": "shoulders",
-    "mediaId": "DsgkuIt",
-    "jpg": 5732,
-    "gif": 87645
+    "mediaId": "DsgkuIt"
   },
   {
-    "ref": "3541",
+    "ref": "1017",
     "name": "Y字侧平举",
-    "datasetName": "dumbbell incline y-raise",
-    "equipment": "dumbbell",
-    "target": "upper back",
-    "category": "back",
-    "mediaId": "PbzNu7c",
-    "jpg": 6588,
-    "gif": 93719
+    "datasetName": "band y-raise",
+    "equipment": "band",
+    "target": "delts",
+    "category": "shoulders",
+    "mediaId": "aHDy5O5"
   },
   {
     "ref": "0310",
@@ -248,9 +204,7 @@
     "equipment": "dumbbell",
     "target": "delts",
     "category": "shoulders",
-    "mediaId": "3eGE2JC",
-    "jpg": 5893,
-    "gif": 80626
+    "mediaId": "3eGE2JC"
   },
   {
     "ref": "0383",
@@ -259,9 +213,7 @@
     "equipment": "dumbbell",
     "target": "delts",
     "category": "shoulders",
-    "mediaId": "EAs3xL9",
-    "jpg": 7850,
-    "gif": 119235
+    "mediaId": "EAs3xL9"
   },
   {
     "ref": "0233",
@@ -270,9 +222,7 @@
     "equipment": "cable",
     "target": "delts",
     "category": "shoulders",
-    "mediaId": "ZfyAGhK",
-    "jpg": 8311,
-    "gif": 111245
+    "mediaId": "ZfyAGhK"
   },
   {
     "ref": "0308",
@@ -281,9 +231,7 @@
     "equipment": "dumbbell",
     "target": "pectorals",
     "category": "chest",
-    "mediaId": "yz9nUhF",
-    "jpg": 9375,
-    "gif": 111040
+    "mediaId": "yz9nUhF"
   },
   {
     "ref": "0603",
@@ -292,9 +240,7 @@
     "equipment": "leverage machine",
     "target": "delts",
     "category": "shoulders",
-    "mediaId": "67n3r98",
-    "jpg": 5616,
-    "gif": 81313
+    "mediaId": "67n3r98"
   },
   {
     "ref": "0308",
@@ -303,9 +249,7 @@
     "equipment": "dumbbell",
     "target": "pectorals",
     "category": "chest",
-    "mediaId": "yz9nUhF",
-    "jpg": 9375,
-    "gif": 111040
+    "mediaId": "yz9nUhF"
   },
   {
     "ref": "0031",
@@ -314,9 +258,7 @@
     "equipment": "barbell",
     "target": "biceps",
     "category": "upper arms",
-    "mediaId": "25GPyDY",
-    "jpg": 7053,
-    "gif": 106020
+    "mediaId": "25GPyDY"
   },
   {
     "ref": "0294",
@@ -325,9 +267,7 @@
     "equipment": "dumbbell",
     "target": "biceps",
     "category": "upper arms",
-    "mediaId": "NbVPDMW",
-    "jpg": 5642,
-    "gif": 71565
+    "mediaId": "NbVPDMW"
   },
   {
     "ref": "0313",
@@ -336,9 +276,7 @@
     "equipment": "dumbbell",
     "target": "biceps",
     "category": "upper arms",
-    "mediaId": "slDvUAU",
-    "jpg": 5575,
-    "gif": 78291
+    "mediaId": "slDvUAU"
   },
   {
     "ref": "0070",
@@ -347,9 +285,7 @@
     "equipment": "barbell",
     "target": "biceps",
     "category": "upper arms",
-    "mediaId": "qOgPVf6",
-    "jpg": 8260,
-    "gif": 117468
+    "mediaId": "qOgPVf6"
   },
   {
     "ref": "0868",
@@ -358,9 +294,7 @@
     "equipment": "cable",
     "target": "biceps",
     "category": "upper arms",
-    "mediaId": "G08RZcQ",
-    "jpg": 6029,
-    "gif": 81744
+    "mediaId": "G08RZcQ"
   },
   {
     "ref": "0201",
@@ -369,9 +303,7 @@
     "equipment": "cable",
     "target": "triceps",
     "category": "upper arms",
-    "mediaId": "3ZflifB",
-    "jpg": 6259,
-    "gif": 95234
+    "mediaId": "3ZflifB"
   },
   {
     "ref": "0061",
@@ -380,9 +312,7 @@
     "equipment": "barbell",
     "target": "triceps",
     "category": "upper arms",
-    "mediaId": "iZop9xO",
-    "jpg": 7959,
-    "gif": 102249
+    "mediaId": "iZop9xO"
   },
   {
     "ref": "2188",
@@ -391,9 +321,7 @@
     "equipment": "dumbbell",
     "target": "triceps",
     "category": "upper arms",
-    "mediaId": "kont8Ut",
-    "jpg": 5737,
-    "gif": 74300
+    "mediaId": "kont8Ut"
   },
   {
     "ref": "0814",
@@ -402,9 +330,7 @@
     "equipment": "body weight",
     "target": "triceps",
     "category": "upper arms",
-    "mediaId": "X6C6i5Y",
-    "jpg": 6458,
-    "gif": 90339
+    "mediaId": "X6C6i5Y"
   },
   {
     "ref": "0043",
@@ -413,9 +339,7 @@
     "equipment": "barbell",
     "target": "glutes",
     "category": "upper legs",
-    "mediaId": "qXTaZnJ",
-    "jpg": 6834,
-    "gif": 88019
+    "mediaId": "qXTaZnJ"
   },
   {
     "ref": "0743",
@@ -424,9 +348,7 @@
     "equipment": "sled machine",
     "target": "glutes",
     "category": "upper legs",
-    "mediaId": "Qa55kX1",
-    "jpg": 8361,
-    "gif": 113706
+    "mediaId": "Qa55kX1"
   },
   {
     "ref": "0739",
@@ -435,20 +357,16 @@
     "equipment": "sled machine",
     "target": "glutes",
     "category": "upper legs",
-    "mediaId": "10Z2DXU",
-    "jpg": 8714,
-    "gif": 115136
+    "mediaId": "10Z2DXU"
   },
   {
-    "ref": "1425",
+    "ref": "0228",
     "name": "站姿倒蹬腿",
-    "datasetName": "sled 45 degrees one leg press",
-    "equipment": "sled machine",
+    "datasetName": "cable standing hip extension",
+    "equipment": "cable",
     "target": "glutes",
     "category": "upper legs",
-    "mediaId": "WWD6FzI",
-    "jpg": 8712,
-    "gif": 123412
+    "mediaId": "Kpajagk"
   },
   {
     "ref": "2287",
@@ -457,9 +375,7 @@
     "equipment": "leverage machine",
     "target": "quads",
     "category": "upper legs",
-    "mediaId": "V07qpXy",
-    "jpg": 8960,
-    "gif": 197749
+    "mediaId": "V07qpXy"
   },
   {
     "ref": "0585",
@@ -468,9 +384,7 @@
     "equipment": "leverage machine",
     "target": "quads",
     "category": "upper legs",
-    "mediaId": "my33uHU",
-    "jpg": 8379,
-    "gif": 142827
+    "mediaId": "my33uHU"
   },
   {
     "ref": "0586",
@@ -479,9 +393,7 @@
     "equipment": "leverage machine",
     "target": "hamstrings",
     "category": "upper legs",
-    "mediaId": "17lJ1kr",
-    "jpg": 8356,
-    "gif": 114778
+    "mediaId": "17lJ1kr"
   },
   {
     "ref": "0085",
@@ -490,9 +402,7 @@
     "equipment": "barbell",
     "target": "glutes",
     "category": "upper legs",
-    "mediaId": "wQ2c4XD",
-    "jpg": 6619,
-    "gif": 88713
+    "mediaId": "wQ2c4XD"
   },
   {
     "ref": "0410",
@@ -501,9 +411,7 @@
     "equipment": "dumbbell",
     "target": "quads",
     "category": "upper legs",
-    "mediaId": "qx4fgX7",
-    "jpg": 7257,
-    "gif": 99446
+    "mediaId": "qx4fgX7"
   },
   {
     "ref": "1409",
@@ -512,9 +420,7 @@
     "equipment": "barbell",
     "target": "glutes",
     "category": "upper legs",
-    "mediaId": "qKBpF7I",
-    "jpg": 7082,
-    "gif": 118724
+    "mediaId": "qKBpF7I"
   },
   {
     "ref": "0598",
@@ -523,9 +429,7 @@
     "equipment": "leverage machine",
     "target": "adductors",
     "category": "upper legs",
-    "mediaId": "oHsrypV",
-    "jpg": 7607,
-    "gif": 134395
+    "mediaId": "oHsrypV"
   },
   {
     "ref": "0597",
@@ -534,9 +438,7 @@
     "equipment": "leverage machine",
     "target": "abductors",
     "category": "upper legs",
-    "mediaId": "CHpahtl",
-    "jpg": 11118,
-    "gif": 178656
+    "mediaId": "CHpahtl"
   },
   {
     "ref": "1372",
@@ -545,9 +447,7 @@
     "equipment": "barbell",
     "target": "calves",
     "category": "lower legs",
-    "mediaId": "8ozhUIZ",
-    "jpg": 6542,
-    "gif": 91083
+    "mediaId": "8ozhUIZ"
   },
   {
     "ref": "0274",
@@ -556,9 +456,7 @@
     "equipment": "body weight",
     "target": "abs",
     "category": "waist",
-    "mediaId": "TFqbd8t",
-    "jpg": 6752,
-    "gif": 95123
+    "mediaId": "TFqbd8t"
   },
   {
     "ref": "0175",
@@ -567,8 +465,6 @@
     "equipment": "cable",
     "target": "abs",
     "category": "waist",
-    "mediaId": "WW95auq",
-    "jpg": 6850,
-    "gif": 101722
+    "mediaId": "WW95auq"
   }
 ]
