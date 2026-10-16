@@ -62,7 +62,11 @@ const defaultExerciseKeys = new Set(
   exerciseSeeds.map((exercise) => exerciseKey(exercise.muscle, exercise.name)),
 );
 const SYNC_VERSION_KEY = 'defaults-sync-version';
-/** 改动 shared/defaults 里「增删」时把这个数字 +1，老用户下次打开才会同步到 */
+/**
+ * **只管增 / 删**：往 shared/defaults 里加或删默认项时 +1，老用户下次打开才同步到。
+ * 改已有条目的字段（动作的 weightSlots / ref、补剂的 units）**不用动它** ——
+ * 那些由 reconcileDefaultFields / 补剂合并逻辑每次打开对齐。
+ */
 const SYNC_VERSION = 6;
 
 /**
@@ -76,6 +80,52 @@ function mergeUnits(local: readonly string[], seed: readonly string[]): string[]
     if (trimmed.length > 0 && !merged.includes(trimmed)) merged.push(trimmed);
   }
   return merged;
+}
+
+/**
+ * 把「归 JSON 管」的字段对齐到本机 —— 目前是动作的 weightSlots 与示范图编号。
+ *
+ * 为什么必须每次打开都跑，不能挂在 SYNC_VERSION 上：
+ * 那个版本号管的是**增 / 删**（它的作用是别把用户特意删掉的默认项又加回来），
+ * 而「改一个已有动作的 ref / 段数」根本不改版本号 —— 于是 JSON 改了，
+ * 手机却永远停在旧值。换示范图踩过这个坑，所以这里单独拆出来。
+ *
+ * 安全性来自它只做一件事：更新**已经存在**的默认动作，不新建、不删除。
+ * 自定义动作一律不碰。
+ */
+async function reconcileDefaultFields(): Promise<void> {
+  const [muscles, exercises] = await Promise.all([
+    getAll<Muscle>(Store.muscles),
+    getAll<Exercise>(Store.exercises),
+  ]);
+
+  const muscleNameById = new Map(muscles.map((muscle) => [muscle.id, muscle.name]));
+  const byKey = new Map<string, Exercise>();
+  for (const exercise of exercises) {
+    if (exercise.isCustom) continue;
+    byKey.set(exerciseKey(muscleNameById.get(exercise.muscleId) ?? '', exercise.name), exercise);
+  }
+
+  let patched = 0;
+  for (const seed of exerciseSeeds) {
+    const existing = byKey.get(exerciseKey(seed.muscle, seed.name));
+    if (!existing) continue;
+
+    const patch: { weightSlots?: number; mediaRef?: string | null } = {};
+    const slots = normalizeWeightSlots(seed);
+    const mediaRef = normalizeMediaRef(seed);
+    // 老设备上的动作可能没有 weightSlots / mediaRef（v4、v6 之前），一并补齐
+    if (normalizeWeightSlots(existing) !== slots) patch.weightSlots = slots;
+    if ((existing.mediaRef ?? null) !== mediaRef) patch.mediaRef = mediaRef;
+    if (Object.keys(patch).length === 0) continue;
+
+    await put(Store.exercises, { ...existing, ...patch });
+    patched += 1;
+  }
+
+  if (patched > 0) {
+    console.info(`[FitLog] 已把 ${patched} 个默认动作对齐到 shared/defaults`);
+  }
 }
 
 /** 把 JSON 里新增的默认项补进本机库 */
@@ -122,20 +172,8 @@ async function mergeMissingDefaults(): Promise<void> {
     const mediaRef = normalizeMediaRef(seed);
     const existing = exerciseByKey.get(exerciseKey(seed.muscle, seed.name));
 
-    if (existing) {
-      // 老设备上的动作没有 weightSlots（v4 之前），或者 JSON 里改了段数 —— 只补默认动作，
-      // 用户自己建的动作不动
-      if (existing.isCustom) continue;
-
-      // v6 补示范图编号：老数据没有这个字段，JSON 里新加了 / 改了 ref 也要跟着更新
-      const patch: { weightSlots?: number; mediaRef?: string | null } = {};
-      if (normalizeWeightSlots(existing) !== slots) patch.weightSlots = slots;
-      if ((existing.mediaRef ?? null) !== mediaRef) patch.mediaRef = mediaRef;
-      if (Object.keys(patch).length > 0) {
-        await put(Store.exercises, { ...existing, ...patch });
-      }
-      continue;
-    }
+    // 已有的默认动作不在这里改 —— 字段对齐是 reconcileDefaultFields 的活，它每次打开都跑
+    if (existing) continue;
 
     const muscleId = muscleByName.get(seed.muscle)?.id;
     if (muscleId === undefined) {
@@ -213,6 +251,9 @@ async function removeStaleDefaults(): Promise<void> {
 /** 每次打开 App 都会跑一遍，幂等 */
 export async function syncDefaultData(): Promise<void> {
   await ensureDefaultsSeeded();
+
+  // 字段对齐每次打开都跑：只更新已存在的默认动作，不增不删，所以安全
+  await reconcileDefaultFields();
 
   const stored = await get<MetaRow>(Store.meta, SYNC_VERSION_KEY);
   const appliedVersion = Number(stored?.value ?? '0');
