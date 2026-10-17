@@ -336,6 +336,7 @@ export function WorkoutExerciseCard({
                 <SetRow
                   key={activeSet.id}
                   set={activeSet}
+                  exerciseName={entry.exerciseName}
                   weightSlots={weightSlots}
                   disabled={disabled}
                   onUpdate={onUpdateSet}

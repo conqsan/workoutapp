@@ -13,11 +13,13 @@ import {
 } from '@/data';
 import { todayKey } from '@/data/ids';
 import { useWorkout } from '@/hooks/useWorkout';
+import { formatRestClock, pauseRest, resumeRest, stopRest, useRestTimer } from '@/stores/restTimer';
 import { formatDateLabel, formatVolume } from '@/utils/format';
 import { formatSetSummary } from '@/utils/setWeights';
 
 export function WorkoutPage(): ReactElement {
   const navigate = useNavigate();
+  const restTimer = useRestTimer();
   const {
     loading,
     workout,
@@ -289,6 +291,47 @@ export function WorkoutPage(): ReactElement {
           </div>
         </div>
 
+        {/* 休息计时器的常驻条：切到别的动作 / 折叠起来时，倒计时也还看得见 */}
+        {restTimer.status !== 'idle' ? (
+          <div
+            className="flex items-center gap-2 rounded-xl bg-slate-900 px-3 py-2 text-white"
+            data-testid="rest-timer-bar"
+            data-state={restTimer.status}
+          >
+            <span className="min-w-0 flex-1 truncate text-xs text-slate-300">
+              {restTimer.exerciseName || '休息'}
+              {restTimer.status === 'done' ? ' · 休息结束' : ' · 休息'}
+            </span>
+            {restTimer.status === 'done' ? null : (
+              <>
+                <span
+                  className="shrink-0 font-mono text-lg font-bold tabular-nums"
+                  data-testid="rest-timer-bar-clock"
+                >
+                  {formatRestClock(restTimer.remainingMs)}
+                </span>
+                <button
+                  type="button"
+                  onClick={() => (restTimer.status === 'running' ? pauseRest() : resumeRest())}
+                  data-testid="rest-timer-bar-toggle"
+                  className="min-h-[30px] shrink-0 rounded-lg bg-white/15 px-2.5 text-xs font-semibold"
+                >
+                  {restTimer.status === 'running' ? '暂停' : '继续'}
+                </button>
+              </>
+            )}
+            <button
+              type="button"
+              onClick={stopRest}
+              aria-label="关闭休息计时"
+              data-testid="rest-timer-bar-close"
+              className="flex h-[30px] w-[30px] shrink-0 items-center justify-center rounded-lg text-white/60"
+            >
+              ✕
+            </button>
+          </div>
+        ) : null}
+
         {muscleSummary ? (
           <p className="rounded-xl bg-brand-50 px-3 py-2 text-sm font-medium text-brand-800">
             训练部位：{muscleSummary}
@@ -371,7 +414,11 @@ export function WorkoutPage(): ReactElement {
         <button
           type="button"
           disabled={saving || workout.exercises.length === 0}
-          onClick={() => void complete()}
+          onClick={() => {
+            // 训练结束了，休息计时没有意义，顺手收掉
+            stopRest();
+            void complete();
+          }}
           data-testid="complete-workout"
           className="btn btn-primary h-14 w-full text-base disabled:opacity-40"
         >
@@ -386,7 +433,10 @@ export function WorkoutPage(): ReactElement {
                 type="button"
                 data-testid="confirm-discard"
                 className="min-h-[32px] rounded-lg bg-rose-600 px-3 text-xs font-semibold text-white"
-                onClick={() => void discard()}
+                onClick={() => {
+                  stopRest();
+                  void discard();
+                }}
               >
                 确认删除
               </button>

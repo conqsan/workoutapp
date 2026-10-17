@@ -1,6 +1,8 @@
 import { useEffect, useRef, useState, type ReactElement } from 'react';
 import { QuickWeightButtons } from './QuickWeightButtons';
+import { RestTimer } from './RestTimer';
 import type { WeightUnit, WorkoutSet, WorkoutSetPatch } from '@/data';
+import { startRest } from '@/stores/restTimer';
 import { cn } from '@/utils/cn';
 import {
   WEIGHT_UNITS,
@@ -21,6 +23,8 @@ import {
 
 export interface SetRowProps {
   set: WorkoutSet;
+  /** 动作名：休息计时器在页面顶部的常驻条上要显示它是哪个动作 */
+  exerciseName: string;
   /** 这个动作一组显示几个重量框（递减组是 3） */
   weightSlots: number;
   disabled: boolean;
@@ -42,6 +46,7 @@ export interface SetRowProps {
  */
 export function SetRow({
   set,
+  exerciseName,
   weightSlots,
   disabled,
   onUpdate,
@@ -53,7 +58,6 @@ export function SetRow({
   const [weightInputs, setWeightInputs] = useState<string[]>(() => weightInputValues(set, slots));
   const [repsInputs, setRepsInputs] = useState<string[]>(() => repsInputValues(set, slots));
   const [weightError, setWeightError] = useState<string | null>(null);
-  const [rest, setRest] = useState(set.restSeconds === null ? '' : String(set.restSeconds));
   const [note, setNote] = useState(set.note);
   const [moreOpen, setMoreOpen] = useState(false);
   const [confirmRemove, setConfirmRemove] = useState(false);
@@ -72,11 +76,7 @@ export function SetRow({
     setWeightError(null);
   }, [storedKey, slots]);
 
-  // 休息 / 备注各自同步（次数跟着上面的段一起同步）
-  useEffect(
-    () => setRest(set.restSeconds === null ? '' : String(set.restSeconds)),
-    [set.restSeconds],
-  );
+  // 备注另外同步（次数跟着上面的段一起同步；休息时长由 RestTimer 自己管）
   useEffect(() => setNote(set.note), [set.note]);
 
   const commitNumbers = (): void => {
@@ -119,19 +119,6 @@ export function SetRow({
     // 输入不合法就还原成已保存的值，不让用户看到假数据
     setWeightInputs(weightInputValues(set, slots));
     setRepsInputs(repsInputValues(set, slots));
-  };
-
-  const commitRest = (): void => {
-    if (rest.trim() === '') {
-      if (set.restSeconds !== null) onUpdate(set.id, { restSeconds: null });
-      return;
-    }
-    const parsed = Number(rest);
-    if (Number.isInteger(parsed) && parsed >= 0) {
-      if (parsed !== set.restSeconds) onUpdate(set.id, { restSeconds: parsed });
-      return;
-    }
-    setRest(set.restSeconds === null ? '' : String(set.restSeconds));
   };
 
   const adjustWeight = (delta: number): void => {
@@ -178,7 +165,19 @@ export function SetRow({
           <button
             type="button"
             disabled={disabled}
-            onClick={() => onUpdate(set.id, { completed: !set.completed })}
+            onClick={() => {
+              const next = !set.completed;
+              onUpdate(set.id, { completed: next });
+              // 点「完成」就顺手开始休息计时 —— 练完一组本来就要歇，
+              // 不用再单独去找计时器。没设休息时长的组不自动开始。
+              if (next && set.restSeconds !== null && set.restSeconds > 0) {
+                startRest({
+                  setId: set.id,
+                  exerciseName,
+                  seconds: set.restSeconds,
+                });
+              }
+            }}
             data-testid="set-done"
             className={cn(
               'min-h-[30px] rounded-full px-3 text-xs font-semibold transition disabled:opacity-50',
@@ -301,44 +300,33 @@ export function SetRow({
           </p>
         ) : null}
 
-        <div className="flex items-end gap-2">
-          {slots === 1 ? (
-            <label className="min-w-0 flex-1">
-              <span className="mb-1 block text-[11px] font-medium text-slate-500">次数</span>
-              <input
-                type="text"
-                inputMode="numeric"
-                enterKeyHint="done"
-                data-testid="set-reps"
-                value={repsInputs[0] ?? ''}
-                disabled={disabled}
-                onChange={(event) => setRepsInputs([event.target.value])}
-                onBlur={commitNumbers}
-                onKeyDown={(event) => {
-                  if (event.key === 'Enter') event.currentTarget.blur();
-                }}
-                className="field h-12 px-2 text-center text-lg font-semibold"
-              />
-            </label>
-          ) : null}
-          <label className="min-w-0 flex-1">
-            <span className="mb-1 block text-[11px] font-medium text-slate-500">休息 (秒)</span>
+        {slots === 1 ? (
+          <label className="block">
+            <span className="mb-1 block text-[11px] font-medium text-slate-500">次数</span>
             <input
               type="text"
               inputMode="numeric"
               enterKeyHint="done"
-              value={rest}
+              data-testid="set-reps"
+              value={repsInputs[0] ?? ''}
               disabled={disabled}
-              onChange={(event) => setRest(event.target.value)}
-              onBlur={commitRest}
+              onChange={(event) => setRepsInputs([event.target.value])}
+              onBlur={commitNumbers}
               onKeyDown={(event) => {
                 if (event.key === 'Enter') event.currentTarget.blur();
               }}
-              placeholder="—"
-              className="field h-12 px-2 text-center text-lg font-semibold"
+              className="field h-12 w-full px-2 text-center text-lg font-semibold"
             />
           </label>
-        </div>
+        ) : null}
+
+        <RestTimer
+          setId={set.id}
+          exerciseName={exerciseName}
+          restSeconds={set.restSeconds}
+          disabled={disabled}
+          onRestChange={(seconds) => onUpdate(set.id, { restSeconds: seconds })}
+        />
       </div>
 
       <div className="mt-2">
