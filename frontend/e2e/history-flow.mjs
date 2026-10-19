@@ -90,7 +90,7 @@ async function main() {
     await waitFor(page, 'history-item', undefined, 15_000);
 
     const dates = await historyDates(page);
-    check('列出 3 次训练', dates.length === 3, dates);
+    check('列出 3 天记录（3 次训练）', dates.length === 3, dates);
     check(
       '按日期倒序：10/6 → 10/3 → 10/1',
       JSON.stringify(dates) === JSON.stringify(['2026-10-06', '2026-10-03', '2026-10-01']),
@@ -183,8 +183,10 @@ async function main() {
     await waitFor(page, 'history-item', undefined, 10_000);
     check('从详情返回历史列表', page.url().endsWith('/history'), page.url());
     check(
-      '列表总数被 normalize 后仍是 3',
-      normalizeNumberText(await page.evaluate(() => document.body.innerText)).includes('共3次训练'),
+      '列表按天计数：共 3 天 · 3 次训练',
+      normalizeNumberText(await page.evaluate(() => document.body.innerText)).includes(
+        '共3天·3次训练',
+      ),
     );
 
     section('[7] 删除：从列表删掉 10/3（背）');
@@ -205,9 +207,9 @@ async function main() {
       await historyDates(page),
     );
     check(
-      '计数同步更新成 2',
+      '计数同步更新成 2 天 · 2 次',
       (await page.$eval('[data-testid="history-count"]', (el) => el.textContent ?? '')).includes(
-        '2 次训练',
+        '2 天',
       ),
       await page.$eval('[data-testid="history-count"]', (el) => el.textContent ?? ''),
     );
@@ -266,14 +268,19 @@ async function main() {
       '保存后编辑区自动收起',
       await waitUntil(async () => (await page.$('[data-testid="workout-editor"]')) === null),
     );
-    const editedText = (await page.evaluate(() => document.body.innerText)).replace(/\s+/g, ' ');
+    // 改了日期 = 这次训练挪到另一天，页面会回到列表重新分组
     check(
-      '日期改成了 2026年10月5日',
-      editedText.includes('2026年10月5日'),
-      editedText.slice(0, 120),
+      '改了日期后回到历史列表',
+      await waitUntil(async () => page.url().endsWith('/history')),
+      page.url(),
     );
+    const editedText = (await page.evaluate(() => document.body.innerText)).replace(/\s+/g, ' ');
+    check('列表里出现了 10月5日', editedText.includes('10月5日'), editedText.slice(0, 120));
     check('训练备注保存成功', editedText.includes('重量记错了'), editedText.slice(0, 200));
 
+    // 回到 10/5 那一天继续改组
+    await clickWhenReady(await itemByDate(page, '2026-10-05'));
+    await waitFor(page, 'history-exercise', undefined, 10_000);
     const setRow = await waitFor(page, 'history-set');
     await clickWhenReady(await setRow.$('[data-testid="edit-set"]'));
     await fillInput(await waitFor(page, 'edit-set-weight'), '105');
@@ -305,7 +312,83 @@ async function main() {
       await historyDates(page),
     );
 
-    section('[11] 页面没有 JS 报错');
+    section('[11] 同一天练两次：只占一行，详情里按时间分成两次');
+    await createWorkout(page, {
+      date: '2026-10-08',
+      muscle: '胸',
+      exercise: '杠铃卧推',
+      sets: [[60, 10]],
+    });
+    await createWorkout(page, {
+      date: '2026-10-08',
+      muscle: '肩',
+      exercise: '哑铃侧平举',
+      sets: [[10, 10]],
+    });
+
+    await page.goto(`${BASE_URL}/history`, { waitUntil: 'domcontentloaded' });
+    await waitFor(page, 'history-item', undefined, 15_000);
+    const dayRow = await page.$('[data-testid="history-row"][data-date="2026-10-08"]');
+    check('同一天只占一行', dayRow !== null);
+    check(
+      '这一行标着 2 次训练',
+      (await dayRow.evaluate((node) => node.dataset.sessions)) === '2',
+      await dayRow.evaluate((node) => node.dataset.sessions),
+    );
+    check(
+      '行摘要写着「2 次训练」',
+      (await dayRow.evaluate((node) => (node.textContent ?? '').replace(/\s+/g, ''))).includes(
+        '2次训练',
+      ),
+    );
+
+    await clickWhenReady(await dayRow.$('[data-testid="history-item"]'));
+    await waitFor(page, 'history-session', undefined, 10_000);
+    const sessionBlocks = await page.$$('[data-testid="history-session"]');
+    check('详情里分成两次训练', sessionBlocks.length === 2, sessionBlocks.length);
+    const ranges = await page.$$eval('[data-testid="history-session-time"]', (nodes) =>
+      nodes.map((node) => (node.textContent ?? '').trim()),
+    );
+    check(
+      '每一次都标了自己的时间',
+      ranges.length === 2 && ranges.every((text) => /\d{2}:\d{2}/.test(text)),
+      ranges,
+    );
+
+    section('[12] 历史里补记动作和组数');
+    const setsBefore = (await page.$$('[data-testid="history-set"]')).length;
+    await clickWhenReady(await page.$('[data-testid="history-add-set"]'));
+    check(
+      '加了一组',
+      await waitUntil(
+        async () => (await page.$$('[data-testid="history-set"]')).length === setsBefore + 1,
+      ),
+      `${setsBefore} -> ${(await page.$$('[data-testid="history-set"]')).length}`,
+    );
+
+    const exercisesBefore = await page.$$eval('[data-testid="history-exercise"]', (nodes) =>
+      nodes.map((node) => node.dataset.name),
+    );
+    await clickWhenReady(await page.waitForSelector('[data-testid="add-history-exercise"]'));
+    await waitFor(page, 'exercise-option', undefined, 10_000);
+    await clickWhenReady(await page.waitForSelector('[data-testid="muscle-chip"][data-name="背"]'));
+    await clickWhenReady(
+      await page.waitForSelector('[data-testid="exercise-option"][data-name="杠铃划船"]'),
+    );
+    check(
+      '动作加进了这一天',
+      await waitUntil(async () => {
+        const names = await page.$$eval('[data-testid="history-exercise"]', (nodes) =>
+          nodes.map((node) => node.dataset.name),
+        );
+        return names.length === exercisesBefore.length + 1 && names.includes('杠铃划船');
+      }),
+      await page.$$eval('[data-testid="history-exercise"]', (nodes) =>
+        nodes.map((node) => node.dataset.name),
+      ),
+    );
+
+    section('[13] 页面没有 JS 报错');
     check('控制台无报错', pageErrors.length === 0, pageErrors.slice(0, 3));
   } finally {
     await cleanup();

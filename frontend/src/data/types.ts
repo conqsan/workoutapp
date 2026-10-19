@@ -260,6 +260,8 @@ export interface FitLogRepository {
   getActiveWorkout(): Promise<WorkoutDetail | null>;
   /** 所有训练的完整明细（统计页用；内部只查三次库） */
   listWorkouts(): Promise<WorkoutDetail[]>;
+  /** 某一天的全部训练（历史详情按天合并展示；按开始时间升序） */
+  listWorkoutsByDate(date: string): Promise<WorkoutDetail[]>;
   /** 历史列表：所有训练（含进行中）的摘要，按日期倒序 */
   listWorkoutSummaries(): Promise<WorkoutSummary[]>;
   startWorkout(input?: StartWorkoutInput): Promise<WorkoutDetail>;

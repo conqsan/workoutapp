@@ -11,6 +11,8 @@ export function StatsPage(): ReactElement {
     loading,
     error,
     stats,
+    selectedMuscle,
+    selectMuscle,
     exerciseOptions,
     selectedExercise,
     selectExercise,
@@ -54,23 +56,24 @@ export function StatsPage(): ReactElement {
       ) : null}
 
       <section className="space-y-2">
-        <h2 className="section-title px-1">训练次数</h2>
+        <h2 className="section-title px-1">训练天数</h2>
         <div className="grid grid-cols-2 gap-3">
           <BigStat
             label="本周"
-            value={`${stats.weekWorkouts}`}
-            unit="次"
+            value={`${stats.weekTrainingDays}`}
+            unit="天"
             testId="stat-week-workouts"
           />
           <BigStat
             label="近 30 天"
-            value={`${stats.last30Workouts}`}
-            unit="次"
+            value={`${stats.last30TrainingDays}`}
+            unit="天"
             testId="stat-last30-workouts"
           />
         </div>
         <p className="px-1 text-[11px] text-slate-400">
-          一周从周一开始算；近 30 天含今天。合计已完成 {stats.totalWorkouts} 次训练。
+          一天练几次都只算一天。一周从周一开始算，近 30 天含今天； 累计 {stats.totalTrainingDays} 天
+          / {stats.totalWorkouts} 次训练。
         </p>
       </section>
 
@@ -118,6 +121,28 @@ export function StatsPage(): ReactElement {
       <section className="card space-y-3">
         <h2 className="text-base font-semibold text-slate-900">动作重量变化</h2>
 
+        {/* 先选部位 */}
+        <div className="-mx-1 flex gap-1.5 overflow-x-auto px-1 pb-1">
+          {stats.exerciseGroups.map((group) => (
+            <button
+              key={group.muscleName}
+              type="button"
+              data-testid="trend-muscle"
+              data-name={group.muscleName}
+              onClick={() => selectMuscle(group.muscleName)}
+              className={cn(
+                'min-h-[32px] shrink-0 rounded-full px-3 text-xs font-semibold transition',
+                group.muscleName === selectedMuscle
+                  ? 'bg-slate-800 text-white'
+                  : 'bg-white text-slate-500 ring-1 ring-slate-200',
+              )}
+            >
+              {group.muscleName}
+            </button>
+          ))}
+        </div>
+
+        {/* 再选这个部位下的动作 */}
         <div className="-mx-1 flex gap-1.5 overflow-x-auto px-1 pb-1">
           {exerciseOptions.map((option) => (
             <button

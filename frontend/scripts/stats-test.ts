@@ -231,6 +231,36 @@ check(
   stats.last30Workouts,
 );
 
+section('[2.1] 训练天数：同一天练几次也只算一天');
+check('总计 4 天（4 次训练，日期都不同）', stats.totalTrainingDays === 4, stats.totalTrainingDays);
+check('本周 2 天', stats.weekTrainingDays === 2, stats.weekTrainingDays);
+check('近 30 天 4 天', stats.last30TrainingDays === 4, stats.last30TrainingDays);
+
+// 同一天两次训练：次数算 2，天数只能算 1
+const twiceADay = [
+  makeWorkout('same-day-1', '2026-10-06', 'completed', [
+    {
+      exerciseId: 'bench',
+      exerciseName: '杠铃卧推',
+      muscleName: '胸',
+      sets: [{ weight: 80, reps: 10 }],
+    },
+  ]),
+  makeWorkout('same-day-2', '2026-10-06', 'completed', [
+    {
+      exerciseId: 'lateral',
+      exerciseName: '哑铃侧平举',
+      muscleName: '肩',
+      sets: [{ weight: 10, reps: 12 }],
+    },
+  ]),
+];
+const twiceStats = computeStats(twiceADay, NOW);
+check('训练次数还是 2 次', twiceStats.totalWorkouts === 2, twiceStats.totalWorkouts);
+check('训练天数只算 1 天', twiceStats.totalTrainingDays === 1, twiceStats.totalTrainingDays);
+check('本周 1 天', twiceStats.weekTrainingDays === 1, twiceStats.weekTrainingDays);
+check('近 30 天 1 天', twiceStats.last30TrainingDays === 1, twiceStats.last30TrainingDays);
+
 section('[2.5] 近 30 天的边界：第 30 天算，第 31 天不算');
 const edgeWorkout = makeWorkout('edge-in', '2026-09-08', 'completed', [
   {

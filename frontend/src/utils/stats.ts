@@ -37,9 +37,15 @@ export interface MuscleExerciseGroup {
 
 export interface StatsSummary {
   totalWorkouts: number;
+  /** 累计训练天数：同一天练几次都只算一天 */
+  totalTrainingDays: number;
   weekWorkouts: number;
+  /** 本周训练天数（周一算起） */
+  weekTrainingDays: number;
   /** 近 30 天（含今天）完成了几次训练 */
   last30Workouts: number;
+  /** 近 30 天（含今天）练了几天 */
+  last30TrainingDays: number;
   /** 有几次训练还在进行中（没计入上面的统计） */
   activeWorkoutCount: number;
   todayVolume: number;
@@ -194,6 +200,11 @@ export function computeStats(
   let weekVolume = 0;
   let last30Volume = 0;
 
+  /** 一天练几次也只算一天，所以按日期去重 */
+  const allDays = new Set<string>();
+  const weekDays = new Set<string>();
+  const last30Days = new Set<string>();
+
   const muscleMap = new Map<string, CountEntry>();
   const exerciseMap = new Map<string, ExerciseCountEntry>();
   /** 部位 → 动作 → 计数（分组展示用，不合并跨部位的同名动作） */
@@ -206,6 +217,7 @@ export function computeStats(
     }
 
     totalWorkouts += 1;
+    allDays.add(workout.date);
 
     const inWeek = within(workout.date, weekStart, weekEnd);
     const inLast30 = within(workout.date, last30.start, last30.end);
@@ -213,10 +225,12 @@ export function computeStats(
 
     if (inWeek) {
       weekWorkouts += 1;
+      weekDays.add(workout.date);
       weekVolume += volume;
     }
     if (inLast30) {
       last30Workouts += 1;
+      last30Days.add(workout.date);
       last30Volume += volume;
     }
     if (workout.date === today) {
@@ -287,8 +301,11 @@ export function computeStats(
 
   return {
     totalWorkouts,
+    totalTrainingDays: allDays.size,
     weekWorkouts,
+    weekTrainingDays: weekDays.size,
     last30Workouts,
+    last30TrainingDays: last30Days.size,
     activeWorkoutCount,
     todayVolume,
     weekVolume,

@@ -467,6 +467,19 @@ export function createLocalRepository(): FitLogRepository {
       .sort((a, b) => b.date.localeCompare(a.date) || b.startTime.localeCompare(a.startTime));
   }
 
+  /**
+   * 某一天的全部训练。
+   * 直接复用 listWorkouts 再按日期过滤：历史详情一次只开一天，
+   * 多读一遍全表换来的是「聚合口径和统计页完全一致」，不容易出偏差。
+   * 返回按开始时间升序 —— 详情页就是按这个顺序展示「第 1 次 / 第 2 次」。
+   */
+  async function listWorkoutsByDate(date: string): Promise<WorkoutDetail[]> {
+    const all = await listWorkouts();
+    return all
+      .filter((workout) => workout.date === date)
+      .sort((a, b) => a.startTime.localeCompare(b.startTime));
+  }
+
   /** 历史列表用的摘要，直接由 listWorkouts 派生，保证两边口径一致 */
   async function listWorkoutSummaries(): Promise<WorkoutSummary[]> {
     const workouts = await listWorkouts();
@@ -903,6 +916,7 @@ export function createLocalRepository(): FitLogRepository {
     removeSupplementRecord,
     getActiveWorkout,
     listWorkouts,
+    listWorkoutsByDate,
     listWorkoutSummaries,
     startWorkout,
     getWorkout,

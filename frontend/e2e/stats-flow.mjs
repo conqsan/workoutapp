@@ -70,23 +70,23 @@ async function main() {
     });
     check(`60 天前（${pastDate}）的卧推已补记`, true);
 
-    section('[2] 训练次数：本周 / 近 30 天');
+    section('[2] 训练天数：本周 / 近 30 天');
     await page.goto(`${BASE_URL}/stats`, { waitUntil: 'domcontentloaded' });
     await waitFor(page, 'stat-week-workouts', undefined, 15_000);
 
     check(
-      '本周 2 次（今天练了两次；60 天前那次不算）',
-      (await textOf(page, 'stat-week-workouts')).includes('2'),
+      '本周 1 天（今天练了两次也只算一天；60 天前那次不算）',
+      (await textOf(page, 'stat-week-workouts')).replace(/\s+/g, '') === '1天',
       await textOf(page, 'stat-week-workouts'),
     );
     check(
-      '近 30 天 2 次（60 天前那次不在窗口内）',
-      (await textOf(page, 'stat-last30-workouts')).includes('2'),
+      '近 30 天 1 天（60 天前那次不在窗口内）',
+      (await textOf(page, 'stat-last30-workouts')).replace(/\s+/g, '') === '1天',
       await textOf(page, 'stat-last30-workouts'),
     );
     check(
-      '合计已完成 3 次训练（含 60 天前那次）',
-      (await page.evaluate(() => document.body.innerText)).includes('3 次训练'),
+      '累计 2 天 / 3 次训练（含 60 天前那次）',
+      (await page.evaluate(() => document.body.innerText)).includes('累计 2 天 / 3 次训练'),
     );
 
     section('[3] 训练总量：今天 / 本周 / 近 30 天');
@@ -213,10 +213,12 @@ async function main() {
     }
 
     section('[6] 切换到另一个动作');
-    const lateralChip = await page.waitForSelector(
-      '[data-testid="trend-exercise"][data-name="哑铃侧平举"]',
-    );
+    // 动作选项现在按部位分组：先切到「肩」，再选侧平举
+    const lateralChip = await page.waitForSelector('[data-testid="trend-muscle"][data-name="肩"]');
     await clickWhenReady(lateralChip);
+    await clickWhenReady(
+      await page.waitForSelector('[data-testid="trend-exercise"][data-name="哑铃侧平举"]'),
+    );
     check(
       '图表跟随切换（副标题变成哑铃侧平举）',
       await waitUntil(async () =>
@@ -276,7 +278,10 @@ async function main() {
       statsText.includes('进行中的训练没有计入'),
       statsText.slice(0, 160),
     );
-    check('本周仍然是 2 次', (await textOf(page, 'stat-week-workouts')).includes('2'));
+    check(
+      '本周仍然是 1 天',
+      (await textOf(page, 'stat-week-workouts')).replace(/\s+/g, '') === '1天',
+    );
     check(
       '今天的训练总量仍然是 1,560 kg（没把空训练算进去）',
       normalizeNumberText(await textOf(page, 'stat-today-volume')).includes('1560kg'),
@@ -296,6 +301,11 @@ async function main() {
 
     await page.goto(`${BASE_URL}/stats`, { waitUntil: 'domcontentloaded' });
     await waitFor(page, 'stat-week-workouts', undefined, 15_000);
+
+    // 动作按部位分组了：先在「胸」下找「双杠臂屈伸」
+    await clickWhenReady(
+      await page.waitForSelector('[data-testid="trend-muscle"][data-name="胸"]'),
+    );
 
     const chipNames = await page.$$eval('[data-testid="trend-exercise"]', (nodes) =>
       nodes.map((node) => node.getAttribute('data-name')),

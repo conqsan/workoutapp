@@ -23,6 +23,10 @@ export interface UseStatsResult {
   loading: boolean;
   error: string | null;
   stats: StatsSummary | null;
+  /** 「动作重量变化」里当前选中的部位 */
+  selectedMuscle: string;
+  selectMuscle: (name: string) => void;
+  /** 当前部位下的动作（选动作前先选部位） */
   exerciseOptions: ExerciseOption[];
   selectedExercise: string;
   selectExercise: (name: string) => void;
@@ -38,6 +42,7 @@ export function useStats(): UseStatsResult {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [workouts, setWorkouts] = useState<WorkoutDetail[]>([]);
+  const [selectedMuscle, setSelectedMuscle] = useState('');
   const [selectedExercise, setSelectedExercise] = useState('');
 
   useEffect(() => {
@@ -61,49 +66,53 @@ export function useStats(): UseStatsResult {
     };
   }, []);
 
-  // 只把练过的动作列出来当选项，按组数从多到少排。
-  // 按动作名去重：同名动作（例如「双杠臂屈伸」在胸 / 三头）只出现一次。
-  const exerciseOptions = useMemo<ExerciseOption[]>(() => {
-    const map = new Map<string, ExerciseOption>();
-    for (const workout of workouts) {
-      if (workout.status !== 'completed') continue;
-
-      const seen = new Set<string>();
-      for (const entry of workout.exercises) {
-        const name = entry.exerciseName;
-        if (name.length === 0) continue;
-
-        const option = map.get(name) ?? {
-          name,
-          muscleNames: [],
-          setCount: 0,
-          workoutCount: 0,
-        };
-        option.setCount += entry.sets.length;
-        if (!seen.has(name)) {
-          option.workoutCount += 1;
-          seen.add(name);
-        }
-        if (entry.muscleName.length > 0 && !option.muscleNames.includes(entry.muscleName)) {
-          option.muscleNames.push(entry.muscleName);
-        }
-        map.set(name, option);
-      }
-    }
-    return [...map.values()].sort(
-      (a, b) => b.setCount - a.setCount || a.name.localeCompare(b.name),
-    );
-  }, [workouts]);
-
-  // 默认选练得最多的那个动作
-  useEffect(() => {
-    if (selectedExercise === '' && exerciseOptions.length > 0) {
-      const first = exerciseOptions[0];
-      if (first) setSelectedExercise(first.name);
-    }
-  }, [exerciseOptions, selectedExercise]);
-
   const stats = useMemo(() => computeStats(workouts), [workouts]);
+
+  /**
+   * 动作选项按部位分组：先选部位、再选这个部位下的动作。
+   *
+   * 之前是一条平铺的长列表，动作一多就滑不到头；而且同名动作
+   * （「双杠臂屈伸」在胸 / 三头各有一条）也分不清是哪边练的。
+   */
+  const groups = useMemo(() => stats?.exerciseGroups ?? [], [stats]);
+
+  const activeGroup = useMemo(
+    () => groups.find((group) => group.muscleName === selectedMuscle) ?? groups[0] ?? null,
+    [groups, selectedMuscle],
+  );
+
+  // 默认落在练得最多的那个部位
+  useEffect(() => {
+    if (groups.length === 0) return;
+    if (selectedMuscle !== '' && groups.some((group) => group.muscleName === selectedMuscle)) {
+      return;
+    }
+    const first = groups[0];
+    if (first) setSelectedMuscle(first.muscleName);
+  }, [groups, selectedMuscle]);
+
+  // 换了部位之后，动作也要落到这个部位下练得最多的那个
+  useEffect(() => {
+    if (activeGroup === null) return;
+    if (activeGroup.entries.some((entry) => entry.name === selectedExercise)) return;
+    setSelectedExercise(activeGroup.entries[0]?.name ?? '');
+  }, [activeGroup, selectedExercise]);
+
+  const exerciseOptions = useMemo<ExerciseOption[]>(() => {
+    if (activeGroup === null) return [];
+    return activeGroup.entries.map((entry) => ({
+      name: entry.name,
+      muscleNames: [activeGroup.muscleName],
+      setCount: entry.setCount,
+      workoutCount: entry.workoutCount,
+    }));
+  }, [activeGroup]);
+
+  const selectMuscle = (name: string): void => {
+    setSelectedMuscle(name);
+    const group = groups.find((item) => item.muscleName === name);
+    setSelectedExercise(group?.entries[0]?.name ?? '');
+  };
 
   const trend = useMemo(
     () => computeExerciseTrend(workouts, selectedExercise),
@@ -119,6 +128,8 @@ export function useStats(): UseStatsResult {
     loading,
     error,
     stats,
+    selectedMuscle,
+    selectMuscle,
     exerciseOptions,
     selectedExercise,
     selectExercise: setSelectedExercise,
