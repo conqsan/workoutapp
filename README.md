@@ -1,223 +1,110 @@
 # FitLog
 
-个人健身记录工具（PWA，Mobile First）。目标只有一句话：
+> 个人健身记录工具。训练时用最少的操作，把「今天练了什么、做了几组、每组多重」记下来。
 
-> 在健身过程中，用尽可能少的操作，快速记录今天练了什么部位、做了什么动作、做了几组、每组多少次、用多少重量，以及当天用了哪些补剂。
+FitLog 是一个**本地优先**的 PWA：数据先存在手机浏览器里，电脑不用开机，健身房没信号也能记录。
+后端（Fastify + Prisma + SQLite）是可选的，只当备份库和数据分析用，不做实时同步。
 
-这不是商业 SaaS，而是一个长期自用的工具。所有取舍都服从三个优先级：
-
-1. **数据可靠** > UI 好看
-2. **操作快** > 功能多
-3. **稳定** > 花哨
+取舍优先级始终是：**数据可靠 > 操作快 > 界面好看**。
 
 ---
 
-## 一、当前进度
+## 目录
 
-| Phase   | 内容                 | 状态      |
-| ------- | -------------------- | --------- |
-| Phase 1 | 项目初始化和基础架构 | ✅ 已完成 |
-| Phase 2 | 数据库和基础数据     | ✅ 已完成 |
-| Phase 3 | 核心训练记录         | ✅ 已完成 |
-| Phase 4 | 补剂系统             | ✅ 已完成 |
-| Phase 5 | 历史记录             | ✅ 已完成 |
-| Phase 6 | 统计系统             | ✅ 已完成 |
-| Phase 7 | 移动端 UI 优化       | ✅ 已完成 |
-| Phase 8 | PWA 和离线           | ✅ 已完成 |
-| Phase 9 | 全面测试和最终优化   | ✅ 已完成 |
-
-**Phase 1 交付内容**：前后端项目骨架、目录结构、TypeScript strict、ESLint、Prettier、
-Tailwind、Prisma + SQLite 配置、环境变量、统一错误处理、底部导航与五个页面占位、
-一条打通前后端的 `GET /api/health` 通道，以及一个可一键运行的冒烟测试。
-
-**Phase 2 交付内容**：Prisma 的 7 张表与迁移、读 `shared/defaults` 的幂等 seed
-（10 个部位 / 52 个动作 / 3 个补剂）、部位 / 动作 / 补剂的读接口和动作 / 补剂的增删改、
-按「路由 → 控制器 → 服务 → 仓储」分层的代码结构、Zod 输入校验，以及扩展到 52 项断言的
-冒烟测试。数据库状态也从 Phase 1 的「未初始化」变成「已就绪」。
-
-**Phase 3 交付内容**：完整的训练记录流程。前端建了**本地优先的数据层**（IndexedDB），
-训练数据先落在这台设备上，不需要后端在线；后端同时补齐了训练的整套 API。
-`/workout` 页面支持开始 / 完成 / 放弃训练、按部位选动作、逐组录入重量次数与休息、
-快捷重量调整、复制上一组、复制上次训练、调整动作顺序、删除动作与组，以及训练总量实时统计。
-自动化测试：后端 108 项断言 + 端到端 31 项（真实浏览器驱动）。
-
-> 追加改动：**重量支持 kg / lb 两种单位**。每组记住自己是用哪个单位录入的，
-> 统计时统一换算成 kg。详见下面「重量单位」一节。
-
-**Phase 4 交付内容**：`/supplements` 补剂记录页。选补剂（默认 增肌粉 / 肌酸 / 蛋白粉，
-也可以新建自定义补剂）→ 填用量与单位 → 选时间（早餐 / 训练前 / 训练后 / 睡前）→ 添加；
-记录可以逐条修改和删除，也能按日期翻看历史（默认今天）。首页的「今日补剂」会同步显示。
-后端补齐了 `supplement-records` 的增删改查与按日期 / 按补剂筛选。
-
-蛋白粉 / 增肌粉 还可以直接按「勺」记（见下面「补剂单位」）。
-
-**Phase 5 交付内容**：`/history` 历史列表按日期倒序显示「日期 + 训练部位 + 总训练量 +
-动作数 / 组数」，点进去是 `/history/:id` 完整详情（部位、每个动作逐组重量次数与休息、
-该动作的训练量、当天补剂、训练备注）。
-
-列表每行右侧的「删」和详情页底部的「删除这次训练」都能删掉某次训练（都要点两次确认，
-防误触）；删除只影响这次训练（含它的动作与组），**同一天的补剂记录会保留**。
-
-详情页右上角「修改」可以改**训练日期**和**训练备注**；每一组右侧的「改」可以改
-**重量 / 次数 / 休息**，改完训练总量与列表里的数字都会跟着重算。
-
-顺带加了一个实用能力：**训练页可以改「训练日期」**，用来补记前几天忘记记录的训练
-（历史测试里的三天数据就是这么造出来的）。
-
-**Phase 6 交付内容**：`/stats` 统计页。本周 / 近 30 天训练次数、今天 / 本周 / 近 30 天训练总量、
-各部位训练次数、各动作训练次数（都带条形占比），以及单个动作的最大重量趋势折线图
-（Recharts）+ 最大重量 / 最近重量 / 总训练量。首页的「今日概览」也从占位换成了真实数据。
-
-> 后续修了两个统计口径的毛病：**动作重量变化**原来按动作 id 分组，「双杠臂屈伸」这种
-> 同名跨部位的动作会变成两条趋势 —— 现在按**动作名**合并成一条，取当天最大重量；
-> **各动作训练次数**原来被截断成前 12 个，现在全部列出并**按训练部位折叠分组**，
-> 动作多了也不会拉成一条长列表。
-
-**Phase 7 交付内容**：移动端适配。新增一套跑 320 / 375 / 390 / 414 / 768 五个宽度的
-端到端检查（横向溢出、关键控件尺寸、底部导航遮挡），并把训练页的动作列表改成
-**手风琴式**（一次只展开一个动作），去掉绿色卡片。
-
-**Phase 8 交付内容**：PWA 与离线。
-`manifest.webmanifest` + 192/512/maskable 图标 + `apple-touch-icon`，
-`display: standalone`；手写的 service worker（导航 network-first、静态资源 cache-first、
-接口完全不缓存）让 App **装到主屏幕后断网也能打开**；离线时页面顶部显示提示条。
-部署链路：GitHub Actions 构建 + 发布到 GitHub Pages，子路径、SPA 深链接 404 都已处理。
-详见「十一、部署到 GitHub Pages」。
-
-**Phase 9 交付内容**：数据导出 / 导入与收尾。
-「我的」页新增**数据备份**卡片：导出 JSON（完整备份 `fitlog-backup-YYYY-MM-DD.json`）、
-导出 CSV（一行 = 一组的训练明细，含换算成 kg 的列），以及导入 JSON。
-导入是**合并**而不是覆盖：先校验格式与结构（非法 JSON、不是 FitLog 备份、版本过新、
-字段类型不对、日期不存在，都会给出精确到字段路径的中文提示），再按 id 与业务键去重，
-被跳过的实体还会让引用改指向本机已有的那条 —— 所以从另一台设备导进来不会出现两个「胸」。
-同时做了一轮全面回归与清理：后端 151 项 + 统计 63 项 + 备份 / 导入 51 项 + 端到端 332 项，
-并顺手修掉了补剂记录「每条查一次库」的 N+1、移除了已经没有用处的 Phase 占位组件。
-
-> 注：Phase 1 时页面上的「Phase N」占位标注已经全部撤掉 —— 九个 Phase 都实现完了，
-> 留在界面上只会让人以为还有没做完的功能。
-
-### 架构决策：本地优先 PWA
-
-Phase 1 收尾时确认了一个硬伤：原方案「前后端都跑在电脑上」，**电脑不开手机就没法用**，
-而 FitLog 的核心场景恰恰是在健身房现场记录。
-
-因此决定转向**本地优先（local-first）PWA**：前端静态托管到 GitHub Pages，数据主存储是
-手机本地的 IndexedDB，服务端退居「默认数据来源 + 电脑端备份/分析」的角色。
-完整取舍与对各 Phase 的影响见 [docs/adr/0001-local-first-pwa.md](docs/adr/0001-local-first-pwa.md)。
-
-Phase 3 已经把这条架构落地了：
-
-- 前端所有数据读写都走 `src/data/index.ts` 暴露的 `repository`，UI 不直接碰 IndexedDB
-- 训练数据（训练 / 动作 / 每组）存在浏览器本地，**不依赖后端在线**
-- 默认的部位 / 动作打包进前端（读 `shared/defaults`），第一次打开没有网络也能用
-- 后端的整套训练 API 已实现并测试，留给 Phase 8 的同步与电脑端备份使用
-
-也就是说：现在手机连上开发服务器打开一次页面之后，就算把后端关掉，训练记录照样能用。
+- [功能](#功能)
+- [技术栈](#技术栈)
+- [快速开始](#快速开始)
+- [常用命令](#常用命令)
+- [项目结构](#项目结构)
+- [数据存在哪](#数据存在哪)
+- [训练规则](#训练规则)
+- [动作示范图](#动作示范图)
+- [测试](#测试)
+- [部署到 GitHub Pages](#部署到-github-pages)
+- [常见问题](#常见问题)
+- [开发约定](#开发约定)
 
 ---
 
-## 二、技术栈
+## 功能
 
-| 层       | 选型                                     | 版本                |
-| -------- | ---------------------------------------- | ------------------- |
-| 前端框架 | React + TypeScript                       | React 18.3 / TS 5.9 |
-| 构建工具 | Vite                                     | 4.5                 |
-| 样式     | Tailwind CSS（+ PostCSS + Autoprefixer） | 3.4                 |
-| 路由     | React Router                             | 6.30                |
-| 图表     | Recharts（Phase 6 使用，已安装）         | 2.15                |
-| 后端     | Node.js + Fastify + TypeScript           | Fastify 4.29        |
-| ORM      | Prisma                                   | 5.22                |
-| 数据库   | SQLite                                   | —                   |
-| 校验     | Zod                                      | 3.25                |
-| 代码质量 | ESLint 8 + Prettier 3 + tsc strict       | —                   |
-| 包管理   | npm workspaces（monorepo）               | npm 8+              |
+### 训练（`/workout`）
 
-### 运行环境
+- 开始 / 完成 / 放弃一次训练，也可以改「训练日期」补记前几天忘记记的
+- 按部位选动作（10 个部位 / 52 个动作），也能临时新建自定义动作
+- 每组单独记重量、次数、休息；重量支持 **kg / lb**，统计时统一换算成 kg
+- **递减组**：一组里最多 3 段，每段各有自己的重量和次数
+- **组间休息计时器**：填好秒数点 ▶ 就开始倒计时，可暂停、+15 秒、到点响一声
+- 快捷重量（±2.5 / ±5 等）、复制上一组、复制上次训练、调整动作顺序、动作备注
+- 训练总量、总组数实时统计
 
-- Node.js **>= 16.13**（本机实测 Node 16.14.2 可用；如果方便，推荐升级到 Node 20 LTS）
-- npm >= 8（workspaces 需要）
+### 历史（`/history`）
 
-> 依赖版本是按 Node 16 可运行来锁定的：Vite 4 / Tailwind 3 / Prisma 5 / Fastify 4。
-> 如果在 Node 20 上开发，同样可以正常工作。
+- **按天合并**：一天练几次也只占一行，行上标着「2 次训练 · 3 个动作 · 8 组」
+- 点进去是当天的详情：顶部是全天合计，下面按开始时间分成「第 1 次 / 第 2 次」，
+  每次都带自己的时间段（例如 `09:15 – 10:05`）
+- 每一次训练都能单独改日期 / 备注、单独删除；每一组都能就地改重量次数休息
+- **能在历史里补记**：给某次训练加动作、给某个动作加一组（沿用上一组的数据）
+- 删除按「次」算，行上的「删」删的是**整天**；补剂记录不受影响
 
----
+### 统计（`/stats`）
 
-## 三、项目结构
+- **训练天数**：本周 / 近 30 天各练了几天（一天练两次只算一天）
+- **训练总量**：今天 / 本周 / 近 30 天
+- 各部位训练次数、各动作训练次数（按部位分组折叠）
+- **动作重量趋势**：先选部位、再选该部位下的动作，看每次训练的最大重量折线
 
-```
-workout/                      # 仓库根目录（npm workspaces）
-├── package.json              # 根脚本：dev / build / lint / typecheck / test / db:*
-├── docs/adr/                 # 架构决策记录（为什么这么做）
-├── docs/prototypes/          # 设计原型（例如动作示意图的样例页）
-├── shared/defaults/          # 默认部位 / 动作 / 补剂，前后端共用这一份
-├── frontend/                 # 前端（Vite）
-│   ├── index.html
-│   ├── vite.config.ts        # 别名 @ -> src、@shared -> ../shared；/api 代理到后端
-│   ├── e2e/                  # 端到端测试（Puppeteer 驱动真实浏览器）
-│   ├── scripts/              # 纯函数单元测试（统计 63 项 + 备份 / 导入 51 项）
-│   ├── public/               # 静态资源（favicon、Phase 8 的图标与 manifest）
-│   ├── tailwind.config.js
-│   ├── postcss.config.js
-│   ├── tsconfig.json
-│   └── src/
-│       ├── data/             # 本地数据层：repository 接口 + IndexedDB 实现 + 备份 / 导入
-│       ├── components/       # 可复用 UI 组件
-│       │   ├── icons/
-│       │   ├── workout/      # 训练页专用组件（SetRow / ExercisePicker …）
-│       │   ├── supplements/  # 补剂页专用组件（记录行 / 编辑表单）
-│       │   ├── history/      # 历史详情专用组件（逐组编辑）
-│       │   └── stats/        # 统计页专用组件（趋势折线图）
-│       ├── layouts/          # AppLayout（顶部标题 + 内容区 + 底部导航）
-│       ├── pages/            # 主页面 + 404（五个主页面已全部实现）
-│       ├── hooks/            # useWorkout / useSupplements / useHistory / useStats / …
-│       ├── services/         # apiClient / healthService（与 UI 解耦）
-│       ├── router/           # 导航配置
-│       ├── stores/           # 跨页面共享状态（Phase 8 使用）
-│       ├── types/            # 与后端共享的响应类型
-│       └── utils/            # 日期、重量换算、统计计算（stats.ts）、className 拼接
-└── backend/                  # 后端（Fastify）
-    ├── prisma/
-    │   ├── schema.prisma     # 7 个模型 + 关系
-    │   ├── migrations/       # migration SQL（需要提交到 Git）
-    │   └── seed.ts           # 读 shared/defaults 写入默认数据
-    ├── scripts/smoke-test.ts # 冒烟测试（52 项断言）
-    ├── tsconfig.json
-    └── src/
-        ├── server.ts         # 进程入口：监听端口 + 优雅退出
-        ├── app.ts            # 组装 Fastify 实例
-        ├── config/           # env（Zod 校验）、prisma
-        ├── routes/           # 路由注册（统一挂在 /api）
-        ├── controllers/      # 只负责 HTTP 层
-        ├── services/         # 业务逻辑
-        ├── repositories/     # 数据访问层：所有 Prisma 查询都收敛在这里
-        ├── schemas/          # Zod 输入校验
-        ├── middlewares/      # 统一错误处理 / 404
-        ├── types/            # API 响应类型
-        └── utils/            # ApiError / logger / 常量
-```
+### 补剂（`/supplements`）
 
-分层约定：**路由 → 控制器 → 服务 → 仓储**。页面组件不直接拼 URL，也不直接写业务逻辑。
+- 默认三种：增肌粉、肌酸、蛋白粉；可自定义
+- 单位可自由填，默认数据里增肌粉 / 蛋白粉支持 `g` 和 `勺`（按勺记不会硬换算成克）
+- 记录用量、时间（早餐 / 训练前 / 训练后 / 睡前），可按日期翻看和修改
+
+### 数据
+
+- 存在浏览器的 IndexedDB 里，刷新、关掉重开都不会丢；**清站点数据或换浏览器会丢**
+- 「我的」页可以导出 JSON 完整备份、导入合并、导出 CSV（训练组明细）
+- 装成 PWA 之后断网也能用；打开过的页面和动作示范图会被 service worker 缓存
 
 ---
 
-## 四、安装方法
+## 技术栈
 
-在仓库根目录执行一次即可（npm workspaces 会同时安装前后端依赖）：
+| 层       | 选型                                                     |
+| -------- | -------------------------------------------------------- |
+| 前端     | React 18 · TypeScript（strict）· Vite 4 · Tailwind CSS 3 |
+| 路由     | React Router 6                                           |
+| 图表     | Recharts（统计页单独 chunk，按需加载）                   |
+| 本地存储 | IndexedDB（薄封装，无第三方 ORM）                        |
+| 后端     | Fastify · Zod · Prisma · SQLite                          |
+| 测试     | 自写断言脚本 + Puppeteer（驱动真实 Edge/Chrome）         |
+| 部署     | GitHub Actions → GitHub Pages                            |
+
+要求 Node.js ≥ 16.13，npm workspaces 管理前后端。
+
+---
+
+## 快速开始
 
 ```bash
 npm install
+npm run dev
 ```
 
-### 环境变量
+- 前端：<http://localhost:5173>
+- 后端：<http://localhost:3001>（`/api/health` 可以看数据库状态）
 
-| 文件                        | 说明                                                   |
-| --------------------------- | ------------------------------------------------------ |
-| `backend/.env`              | 后端实际使用的配置（已在本地创建，**不会**提交到 Git） |
-| `backend/.env.example`      | 后端配置模板                                           |
-| `frontend/.env.development` | 前端开发配置（无敏感信息，可提交）                     |
-| `frontend/.env.example`     | 前端配置模板                                           |
+**只跑前端也能用**——数据在浏览器本地，后端只是可选的备份/分析库。
 
-后端默认配置：
+### 初始化后端（第一次克隆时）
+
+```bash
+cp backend/.env.example backend/.env      # Windows: copy backend\.env.example backend\.env
+npm run db:migrate                        # 建表
+npm run db:seed                           # 写入默认部位 / 动作 / 补剂
+```
+
+后端默认配置（`backend/.env`）：
 
 ```ini
 DATABASE_URL="file:./dev.db"     # 相对 backend/prisma/ 目录
@@ -227,183 +114,7 @@ HOST=0.0.0.0
 CORS_ORIGIN=http://localhost:5173
 ```
 
-环境变量在进程启动时用 Zod 校验，缺项会直接报错退出，不会带着坏配置跑起来。
-
----
-
-## 五、数据库初始化
-
-数据模型已经在 Phase 2 建好（7 张表 + migration + seed），数据库文件在
-`backend/prisma/dev.db`。
-
-### 从零初始化（新克隆的仓库）
-
-```bash
-npm install
-cp backend/.env.example backend/.env     # Windows: copy backend\.env.example backend\.env
-npm run db:migrate                      # 建表（执行 prisma/migrations 里的 migration）
-npm run db:seed                         # 写入默认部位 / 动作 / 补剂
-```
-
-### 日常命令
-
-| 命令                  | 作用                                          |
-| --------------------- | --------------------------------------------- |
-| `npm run db:migrate`  | 改完 schema 后生成并应用 migration            |
-| `npm run db:seed`     | 写入默认数据（**幂等**，可重复执行）          |
-| `npm run db:generate` | 只重新生成 Prisma Client                      |
-| `npm run db:studio`   | 打开 Prisma Studio 可视化查看数据             |
-| `npm run db:reset`    | ⚠️ 清空数据库并重建 + 重新 seed，**会丢数据** |
-
-### 数据模型（7 张表）
-
-| 表                   | 说明                                                                                                 |
-| -------------------- | ---------------------------------------------------------------------------------------------------- |
-| `muscles`            | 训练部位，10 项，`sort_order` 决定展示顺序                                                           |
-| `exercises`          | 训练动作，唯一约束是 `(muscle_id, name)`；`weight_slots` 决定一组几个重量框                          |
-| `workouts`           | 一次训练，`status` = `active` / `completed`                                                          |
-| `workout_exercises`  | 某次训练里的某个动作，带 `sort_order` 和备注                                                         |
-| `workout_sets`       | **每一组单独一行**，自己的 `weight` / `reps` / `rest_seconds`；递减段在 `drop_weights` / `drop_reps` |
-| `supplements`        | 补剂，默认 增肌粉 / 肌酸 / 蛋白粉                                                                    |
-| `supplement_records` | 补剂使用记录；`consumption_time` 是「训练后 / 早餐」这类标签，不是时刻                               |
-
-> `workout_sets.weight_unit` 记录这一组是按 `kg` 还是 `lb` 录入的（见下面「重量单位」）。
-> `supplements.units` 是补剂允许记录时使用的单位列表（见下面「补剂单位」）。
-> `workout_sets.drop_weights` / `drop_reps` 是递减组后续段的重量与次数（见下面「递减组」）。
-
-两个刻意的设计决定：
-
-- **日期用 `'YYYY-MM-DD'` 字符串**（`workouts.date`、`supplement_records.date`）。
-  日历日期不是时间点，用 `DateTime` 存会在时区转换时漂移，按天分组还得做范围查询。
-  `start_time` / `end_time` 是真正的时刻，仍然用 `DateTime`。
-- **不做级联删除历史**。删除补剂或动作时，如果已经被记录引用，接口直接返回 409 并说明
-  原因，而不是静默删掉历史数据（详见「十一、常见问题」）。
-
-### 默认数据只有一份定义
-
-默认的训练部位 / 动作 / 补剂定义在 **`shared/defaults/*.json`**，后端 seed 直接读它。
-前端（Phase 3 起）也会读同一份文件，避免两边各写一套最后漂移。
-改完默认数据后重新执行 `npm run db:seed` 即可；seed 只新增，不会覆盖你改过的记录。
-
-### 重量单位（kg / lb）
-
-训练页每个重量输入框旁边有一个 **kg / lb** 小开关。设计原则是**数据真实、统计统一**：
-
-| 场景     | 行为                                                                         |
-| -------- | ---------------------------------------------------------------------------- |
-| 录入     | 数字按你选的单位原样保存，同时把单位一起存下来（`workout_sets.weight_unit`） |
-| 切换单位 | **换算数值**而不是换标签：80kg 切成 lb 会显示 176.37，因为实际举起的重量没变 |
-| 新的一组 | 沿用上一组的单位（「+ 添加一组」就是复制上一组）                             |
-| 训练总量 | 一律**换算成 kg** 再累加，显示时标 `kg`                                      |
-
-为什么总量固定用 kg：如果一次训练里既有 80kg 又有 80lb，直接相加得到的数字没有任何意义。
-统计口径（总量、重量趋势、最大重量）必须统一，所以选 kg 作为基准。
-
-### 补剂单位（g / 勺）
-
-补剂有两个相关字段，都来自 `shared/defaults/supplements.json`：
-
-- `unit`：默认单位（没有特别选就用它）
-- `units`：允许记录时使用的单位列表，**第一项是默认值**
-
-默认数据里 **增肌粉** 与 **蛋白粉** 是 `["g", "勺"]`，肌酸只有 `["g"]`。
-记录时点一下「勺」就能按勺记，存下来就是 `1勺` —— 不硬换算成克，因为一勺多少克
-本来就因品牌和勺子而异，换算反而失真。记录里保存的是**你当时选的那个单位**，
-所以 `30g` 和 `1勺` 会原样留在历史和导出文件里。
-
-老版本（v4 之前）的本地库没有 `units`：升级时先按原单位兜底，再按 `shared/defaults`
-把新增的单位补进去 —— 只补不删，你自己加的单位不会丢。后端同样处理
-（`supplements.units` 存 JSON 数组字符串，SQLite 没有数组类型）。
-
-### 递减组（一组多个重量段）
-
-有些动作用递减组练：一组里连着做 20kg×10 → 15kg×8 → 10kg×6，中间不休息。默认数据里
-**肩 / 飞鸟递减组** 就是这种动作，它在 `shared/defaults/exercises.json` 里写着
-`"weightSlots": 3` —— 意思是一组显示 **3 段，每段各有自己的重量与次数框**。
-
-| 规则       | 说明                                                                              |
-| ---------- | --------------------------------------------------------------------------------- |
-| 每段各自记 | **重量与次数都是每段一份**（20kg×10 → 15kg×8 → 10kg×6）                           |
-| 必填       | 前 2 段的重量与次数都必填，第 3 段可选（整段留空就只算两段）                      |
-| 不允许跳填 | 第 2 段空着时不能直接填第 3 段，避免记成「有头无尾」                              |
-| 休息       | 整组一份（一次连着做完三段，中间不休息）                                          |
-| 训练总量   | **每段按自己的次数算**：`20×10 + 15×8 + 10×6 = 380kg`，历史 / 统计 / CSV 同一口径 |
-| 最大重量   | 取最大的那一段（趋势图与 PR 都按这个算）                                          |
-| 完成训练   | 有必填段没填完会拦下来，并说明是哪个动作的第几组                                  |
-| 历史记录   | 详情页里同样能改任意一段，也能删掉这一组                                          |
-
-数据上：第一段存在 `workout_sets.weight` / `reps`，后续段的重量与次数分别存在
-`drop_weights` / `drop_reps`（JSON 数组字符串，SQLite 没有数组类型，两者一一对应）；
-普通动作是空数组，所以「每组单独一行」的规则没变。
-导出 CSV 时**一段一行**（多一个「段」列），方便直接在表格里透视。
-
-> v6 之前录的递减组次数是整组一份（那时还没有 `drop_reps`）—— 那些老数据读出来会按
-> 这一组的 `reps` 兜底，历史里的数字不会变。
-
-### 移动端适配（Mobile First）
-
-训练页是整个 App 最重要的页面，所以它的动作列表是**手风琴式**的：
-
-- 折叠时每个动作只占一行（序号 / 名称 / 部位 / 组数 / 该动作训练量）
-- 同一时间只展开一个动作，展开的那个才显示组、快捷重量、备注
-- 刚加的动作自动展开；刷新后默认展开第一个
-
-这样十几个组也不会把页面拉成一条长龙。另外：**不用彩色卡片表示「已完成」**，
-状态只体现在蓝色的「✓ 已完成」按钮和组号颜色上，整页更安静。
-
-`npm run e2e:viewport` 会在 320 / 375 / 390 / 414 / 768 五个宽度下把五个主页面各开一遍，
-自动检查：
-
-1. **没有横向溢出**（并会先塞一个 2000px 宽的元素，确认检测器本身有效，避免假阴性）
-2. **关键控件够大**：开始训练 / 训练日期 / 添加动作 / 添加一组 / 完成训练 / 重量与次数输入框，
-   高度都必须 ≥ 44px
-3. **底部导航没压住内容**：`main` 的下内边距必须 ≥ 导航高度
-4. **日期框不越界**：日期框的显示层和可点区域都必须在视口内，而且两层必须严丝合缝
-
-日期框（`components/DateField.tsx`）刻意**不用原生控件当外观**：`<input type="date">` 在手机上
-有自己的内在宽度，中文 locale 下「2026年10月9日」加上日历图标会比卡片还宽 —— 真机上就是
-横向顶出屏幕。现在原生 input 完全透明地盖在自绘的盒子上，只负责点击后弹系统日期选择器，
-宽度由容器决定，换哪个浏览器都不会再撑破布局。
-
-关于键盘：输入框统一 16px 字号（iOS 上小于 16px 会自动放大页面），
-并在 `html` 上设了 `scroll-padding-bottom`，聚焦底部输入框时不会被固定导航挡住。
-真机键盘行为仍建议在手机上实际点一遍。
-
-### 统计口径
-
-统计页的数字都从本地库现算，规则如下（`src/utils/stats.ts` 里写死了这些约定）：
-
-| 规则                | 说明                                                                           |
-| ------------------- | ------------------------------------------------------------------------------ |
-| 只算已完成的训练    | 进行中的训练不计入「训练次数」，页面会提示有几次没计入                         |
-| 一周从周一开始      | 到周日结束；跨月的那一周按实际日期算                                           |
-| 近 30 天            | **含今天，一共 30 天**的滚动窗口（不是自然月：月初那几天「本月」会小得误导人） |
-| 训练总量统一 kg     | 和重量单位规则一致                                                             |
-| 部位 / 动作训练次数 | 「多少次训练里练到过它」；同一次训练里重复出现只算一次                         |
-| 动作次数按部位分组  | 「各动作训练次数」按部位折叠展示，**不再截断**成前 12 个                       |
-| 趋势按动作名聚合    | 同一个动作在多个部位下也只有一个趋势（见下），同一天练两次合并成一个点         |
-
-> 注意：**首页的「今日概览」包含进行中的训练**（练的时候要能看到实时数据），
-> 而统计页只算已完成的 —— 一个是「今天的记录」，一个是「已完成训练的口径」。
-
----
-
-## 六、启动方法
-
-### 同时启动前后端（日常开发）
-
-```bash
-npm run dev
-```
-
-| 服务            | 地址                             |
-| --------------- | -------------------------------- |
-| 前端（Vite）    | http://localhost:5173            |
-| 后端（Fastify） | http://localhost:3001            |
-| 健康检查        | http://localhost:3001/api/health |
-
-前端通过 Vite 代理把 `/api` 转发到后端，所以前端代码里统一使用相对路径 `/api`，
-不写死域名，也不依赖 CORS。
+环境变量在启动时用 Zod 校验，缺项直接报错退出，不会带着坏配置跑起来。
 
 ### 用手机访问（局域网）
 
@@ -411,500 +122,291 @@ npm run dev
 npm run dev:host
 ```
 
-前后端都会启动，只是前端额外绑到局域网网卡，控制台会打印形如
-`http://192.168.x.x:5173` 的地址，手机连同一个 Wi-Fi 后直接打开即可。
-
-### 只启动其中一个
-
-```bash
-npm run dev:backend    # 只启动后端
-npm run dev:frontend   # 只启动前端
-```
-
-### 后端热重载
-
-后端使用 `tsx watch`，改动 `backend/src/**` 会自动重启；前端由 Vite HMR 处理。
+手机连同一个 Wi-Fi，打开电脑的 `http://<局域网 IP>:5173` 即可。
 
 ---
 
-## 七、构建方法
+## 常用命令
 
-```bash
-npm run build      # 后端 tsc -> backend/dist，前端 vite build -> frontend/dist
-npm run start      # 以生产模式运行后端（等价于 node backend/dist/src/server.js）
-npm run preview    # 预览前端构建产物（在 frontend/ 下执行）
-```
+在仓库根目录执行：
 
-生产部署时，前端 `frontend/dist` 交给任意静态服务器并开启 SPA 回退；
-后端监听 3001，反向代理把 `/api` 指到后端即可（这样无需修改前端任何代码）。
+| 命令                   | 作用                                       |
+| ---------------------- | ------------------------------------------ |
+| `npm run dev`          | 同时启动前后端                             |
+| `npm run dev:frontend` | 只启动前端                                 |
+| `npm run dev:backend`  | 只启动后端                                 |
+| `npm run build`        | 构建后端 + 前端                            |
+| `npm run typecheck`    | 前后端 TypeScript 检查                     |
+| `npm run lint`         | 前后端 ESLint                              |
+| `npm run format`       | Prettier 格式化整个仓库                    |
+| `npm test`             | 后端冒烟测试 + 前端统计 / 备份单元测试     |
+| `npm run e2e`          | 9 条端到端流程（**需要先 `npm run dev`**） |
+| `npm run db:migrate`   | 应用 Prisma migration                      |
+| `npm run db:seed`      | 写入默认数据（幂等，可重复执行）           |
+| `npm run db:studio`    | Prisma Studio 可视化查看数据库             |
+| `npm run db:reset`     | ⚠️ 清空数据库并重建，**会丢数据**          |
 
----
-
-## 八、代码质量与测试
-
-```bash
-npm run typecheck     # 前后端 TypeScript 类型检查（strict，无 any 逃逸）
-npm run lint          # 前后端 ESLint
-npm run format        # Prettier 写入
-npm run format:check  # Prettier 校验
-npm test              # 后端冒烟 151 项 + 统计 63 项 + 备份 / 导入 51 项
-npm run e2e           # 端到端测试（332 项，真实浏览器驱动全部主要流程）
-```
-
-`npm test` 会构建真实的 Fastify 应用并用 `app.inject()` 发请求，覆盖：
-
-1. `GET /api/health` 返回统一成功结构，且 `database.initialized = true`
-2. `GET /api/muscles` 返回 10 个默认部位，名称与顺序正确
-3. `GET /api/exercises` 返回 52 个默认动作，带所属部位与「重量框数量」；`?muscleId=` 能按部位过滤
-4. `GET /api/supplements` 返回 3 个默认补剂，并带上可选单位（蛋白粉 / 增肌粉 有「勺」）
-5. `POST / PUT / DELETE /api/exercises` 全流程可用，`isCustom` 标记正确
-6. `POST / PUT / DELETE /api/supplements` 全流程可用
-7. **训练记录按 Phase 3 验收脚本走一遍**：开始训练（胸 + 肩）→ 加卧推 / 上斜哑铃卧推 /
-   侧平举 → 逐组录入 8 组 → 重新拉取验证数据一致 → 复制上一组 → 删组后组号自动压回
-   1/2/3 → 改组 → 调整动作顺序 → 删动作 → 完成训练 → 查上一次训练
-8. 训练总量 = Σ(weight × reps)，逐段核对（3070 → 3095 → 2555 → 2190）
-9. 校验与重复提交：重量为负 / 次数为 0 / 日期不存在 → 422，重复开始训练 → 409，
-   不存在的 id → 404，且提示语都是中文
-10. **重量单位**：用 lb 记账时数字与单位都按原样保存，训练总量把它换算成 kg 再累加；
-    非法单位 → 422；不传单位默认 kg
-11. **补剂记录**：肌酸 5g / 蛋白粉 30g / 增肌粉 100g 三条记录、按日期与按补剂筛选、
-    修改、删除、用量为负 → 422、补剂不存在 → 400
-12. 未知路由 → 统一 `ROUTE_NOT_FOUND` 404；非法 JSON → 可读的 4xx 且不泄露
-    `Internal Server Error`
-
-`npm run test:stats` 是统计逻辑的**纯函数单元测试**（60 项），专门覆盖 Phase 6 验收里点名的
-边界：跨月的那一周、月份天数（平年 / 闰年 2 月）、月末当天、重量为 0、空数据、
-lb 换算、同一天练两次合并成一个数据点。这些用固定日期测最可靠 —— 端到端很难造出
-「跨月的那一周」这种场景。
-
-`npm run test:backup` 是备份 / 恢复的**纯函数单元测试**（42 项）：校验（非法 JSON、
-不是 FitLog 备份、版本比 App 新、某组重量不是数字、2 月 30 日这种不存在的日期）、
-CSV（表头、lb → kg 换算、逗号 / 引号转义、BOM），以及导入去重的边界
-（同一份导两次、跨设备 id 不同但名字相同、引用的动作 / 补剂在本机不存在）。
-
-> 这两份纯函数测试都不需要浏览器，也不碰 IndexedDB，所以最适合守住边界用例 ——
-> 「同一份备份导两次」「跨设备 id 不同」这类场景用端到端很难稳定地造出来。
-
-测试会真的写数据库，但用的是唯一命名的临时记录，跑完自动删干净。
-
-### 端到端测试（`npm run e2e`）
-
-需要先跑着 `npm run dev`。它用 Puppeteer 驱动本机已安装的 Edge/Chrome，在 390×844 的
-手机视口下把训练流程完整点一遍，重点是**刷新页面后数据必须还在**（Phase 3 的验收要求）。
-
-`npm run e2e` 会依次跑七条流程：
-
-| 文件                       | 覆盖                                                                                  | 断言数 |
-| -------------------------- | ------------------------------------------------------------------------------------- | ------ |
-| `e2e/workout-flow.mjs`     | 训练全流程（含 kg/lb、刷新后数据仍在、练完再看开始页）                                | 39     |
-| `e2e/drop-set-flow.mjs`    | 递减组：每段各自的重量与次数、前两段必填、总量按段累加、历史里改某一段                | 20     |
-| `e2e/supplements-flow.mjs` | 补剂增改删、按日期查看、按「勺」记录、老库升级补单位                                  | 23     |
-| `e2e/history-flow.mjs`     | 造三天数据 → 历史排序 / 详情 / 补剂不串日期 / 改日期备注与组 / 删除训练               | 43     |
-| `e2e/stats-flow.mjs`       | 统计口径（本周 / 近 30 天 / 各部位 / 趋势 / 按部位分组）+ 首页今日概览                | 38     |
-| `e2e/backup-flow.mjs`      | 导出 JSON / CSV（真的下载文件并读回来核对）+ 导入合并、去重、坏文件报错               | 28     |
-| `e2e/viewport-flow.mjs`    | 320 / 375 / 390 / 414 / 768 五个宽度的布局自检（溢出 / 控件尺寸 / 日期框 / 底部导航） | 113    |
-| `e2e/pwa-flow.mjs`         | 用 `/workoutapp/` 子路径真实构建，验证 manifest / service worker / 断网               | 28     |
-
-只想跑其中一条：
+只跑某一条 e2e：
 
 ```bash
 npm run e2e:workout --workspace frontend
-npm run e2e:supplements --workspace frontend
 npm run e2e:history --workspace frontend
 npm run e2e:stats --workspace frontend
-npm run e2e:backup --workspace frontend
-npm run e2e:viewport --workspace frontend
-npm run e2e:pwa --workspace frontend
+npm run e2e:rest --workspace frontend
+npm run e2e:pwa --workspace frontend      # 会自己构建 + preview，不需要 dev server
 ```
-
-每次都用全新的浏览器 profile，所以 IndexedDB 是干净的，既保证可重复，也不会碰你
-浏览器的真实数据。加 `E2E_SCREENSHOT=<路径>` / `E2E_SCREENSHOT_SUPPLEMENTS=<路径>`
-`/ E2E_SCREENSHOT_HISTORY_LIST` / `E2E_SCREENSHOT_HISTORY_DETAIL`
-可以在跑测试时把界面截图下来。
-
-### API 约定
-
-成功：
-
-```json
-{ "success": true, "data": {} }
-```
-
-失败（`message` 永远是可以直接展示给用户的中文提示）：
-
-```json
-{ "success": false, "error": { "code": "NOT_FOUND", "message": "找不到对应的数据。" } }
-```
-
-已实现的接口：
-
-| 方法   | 路径                                  | 说明                                                    |
-| ------ | ------------------------------------- | ------------------------------------------------------- |
-| GET    | `/api/health`                         | 服务存活 + 存储就绪状态，始终返回 200                   |
-| GET    | `/api/muscles`                        | 训练部位列表（按 `sortOrder`）                          |
-| GET    | `/api/exercises`                      | 动作列表，支持 `?muscleId=`，每条带所属部位             |
-| GET    | `/api/exercises/:id`                  | 单个动作                                                |
-| POST   | `/api/exercises`                      | 创建自定义动作（`isCustom` 置为 true）                  |
-| PUT    | `/api/exercises/:id`                  | 修改动作（名称 / 部位 / 描述）                          |
-| DELETE | `/api/exercises/:id`                  | 删除动作（被训练引用时返回 409）                        |
-| GET    | `/api/supplements`                    | 补剂列表（默认补剂在前）                                |
-| POST   | `/api/supplements`                    | 创建自定义补剂                                          |
-| PUT    | `/api/supplements/:id`                | 修改补剂（名称 / 单位）                                 |
-| DELETE | `/api/supplements/:id`                | 删除补剂（已有使用记录时返回 409）                      |
-| GET    | `/api/exercises/:id/last-workout`     | 这个动作上一次「已完成」训练的数据，没有历史返回 `null` |
-| POST   | `/api/workouts`                       | 开始训练（已有进行中的训练时返回 409）                  |
-| GET    | `/api/workouts/active`                | 当前进行中的训练，没有则返回 `null`                     |
-| GET    | `/api/workouts/:id`                   | 一次训练的完整结构（动作 + 每组）                       |
-| PUT    | `/api/workouts/:id`                   | 修改训练（日期 / 备注）                                 |
-| DELETE | `/api/workouts/:id`                   | 删除训练（连同它的动作与组一起清掉）                    |
-| POST   | `/api/workouts/:id/complete`          | 完成训练（所有组置为已完成）                            |
-| POST   | `/api/workouts/:id/exercises`         | 往训练里加动作                                          |
-| PUT    | `/api/workouts/:id/exercises/reorder` | 调整动作顺序（传排好序的 id 列表）                      |
-| PUT    | `/api/workout-exercises/:id`          | 改训练动作的备注 / 顺序                                 |
-| DELETE | `/api/workout-exercises/:id`          | 删除训练里的动作（连同它的组）                          |
-| POST   | `/api/workout-exercises/:id/sets`     | 添加一组                                                |
-| PUT    | `/api/sets/:id`                       | 修改某一组（重量 / 次数 / 休息 / 备注 / 完成）          |
-| DELETE | `/api/sets/:id`                       | 删除某一组，并把剩下的组号压成 1..n                     |
-| GET    | `/api/supplement-records`             | 补剂记录，支持 `?date=YYYY-MM-DD` 与 `?supplementId=`   |
-| POST   | `/api/supplement-records`             | 添加记录（不传 date 默认今天，不传 unit 跟随补剂）      |
-| PUT    | `/api/supplement-records/:id`         | 修改记录（用量 / 单位 / 时间 / 备注）                   |
-| DELETE | `/api/supplement-records/:id`         | 删除记录                                                |
-
-> 训练的写操作（加动作、加组、改组…）都会返回**更新后的整次训练**，前端直接用返回值重绘，
-> 不用再请求一次。
-
-> `POST /api/supplements` 与 `PUT /api/supplements/:id` 还可以传 `units: string[]`
-> （允许记录时使用的单位，例如 `["g","勺"]`）；所有补剂响应里都会带 `units`。
-> 补剂记录的 `unit` 是自由字符串，所以「勺」「粒」「片」都能原样保存。
 
 ---
 
-## 九、PWA 使用方法
+## 项目结构
 
-> **架构决策**：本项目采用**本地优先（local-first）PWA**，前端托管在 GitHub Pages，
-> 数据主存储是手机本地的 IndexedDB。原因和取舍见
-> [docs/adr/0001-local-first-pwa.md](docs/adr/0001-local-first-pwa.md)。
+```
+workout/
+├── frontend/                  # React SPA + PWA
+│   ├── public/
+│   │   ├── sw.js              # service worker（导航 network-first，静态资源 cache-first）
+│   │   ├── manifest.webmanifest
+│   │   └── exercises/         # 动作示范图（51 个动作 × jpg + gif，约 5.3MB）
+│   ├── src/
+│   │   ├── pages/             # 首页 / 训练 / 历史 / 统计 / 补剂 / 我的
+│   │   ├── components/        # workout、history、stats、supplements、icons
+│   │   ├── data/              # 类型、IndexedDB、仓储实现、默认数据、备份
+│   │   ├── hooks/             # useWorkout / useHistory / useStats / useSupplements
+│   │   ├── stores/            # 跨组件共享状态（组间休息计时器）
+│   │   └── utils/             # 统计、重量换算、格式化、递减组解析
+│   └── e2e/                   # Puppeteer 端到端流程
+├── backend/                   # Fastify + Prisma + SQLite（可选）
+│   ├── prisma/                # schema、migrations、seed、dev.db
+│   └── src/                   # 路由 → 控制器 → 服务 → 仓储
+├── shared/defaults/           # 部位 / 动作 / 补剂：前后端共用的唯一一份默认数据
+├── docs/                      # 架构决策、原型页、内测文案
+└── tools/                     # 推送到 GitHub 的一次性脚本
+```
 
-PWA（manifest / service worker / 图标 / 离线缓存 / standalone）在 Phase 8 已经做完，
-站点是 <https://conqsan.github.io/workoutapp/>。
+---
 
-在手机上使用的方式是：
+## 数据存在哪
 
-1. 手机浏览器打开 GitHub Pages 上的 FitLog 地址
-2. 「添加到主屏幕」
-3. 从桌面图标启动，即以全屏 standalone 模式运行
+### 本机（主存储）
 
-**电脑不需要开机**。训练记录先写手机本地，断网也能用；需要备份时用导出 JSON。
+训练数据全部在浏览器的 **IndexedDB**（库名 `fitlog`）里，7 张表：
+`muscles` / `exercises` / `workouts` / `workoutExercises` / `workoutSets` /
+`supplements` / `supplementRecords`，外加一张 `meta` 记录迁移与同步版本。
 
-想在开发机上用手机试（不走 Pages），就走局域网：换成 `--host` 模式启动即可。
+**每一组训练单独一行保存**——不会把 `80kg × 10 × 3 组` 塞进一个字段。
+这是历史编辑、统计口径、CSV 导出都能对得上的前提。
+
+### 默认数据只有一份
+
+部位、动作、补剂的默认值只写在 `shared/defaults/*.json`，前端首次启动和后端 seed 读的是同一份。
+改这里不需要改两处。
+
+老设备上的数据靠两层机制跟上：
+
+1. **增删**由 `SYNC_VERSION` 控制（防止把用户特意删掉的默认项又加回来）
+2. **字段对齐**（动作的重量框数量、示范图编号）每次打开都会跑，只更新已存在的默认项，不新建也不删除
+
+第二条是特意拆出来的：改一个动作的 `ref` 不会动版本号，如果挂在版本号上，JSON 改了、手机却永远停在旧值。
+
+### 备份与迁移
+
+- **导出 JSON**：完整快照，换手机/重装就靠它
+- **导入 JSON**：**合并**语义，只补本机没有的，重复的跳过，不会覆盖已有记录，可以放心重复导入
+- **导出 CSV**：训练组明细，带 UTF-8 BOM，Excel 直接打开不乱码
+
+导入前会整体校验，任何一项不合法都不会写入数据。
+
+---
+
+## 训练规则
+
+### 重量单位（kg / lb）
+
+每组记住自己是用哪个单位录入的，显示时按原单位；统计、历史汇总、CSV 里统一换算成 kg。
+切换单位只改显示，不改变实际重量。
+
+### 递减组（一组多个重量段）
+
+默认数据里「肩 / 飞鸟递减组」标了 `"weightSlots": 3`，一组会出现 3 段重量与次数：
+
+```
+20kg × 10  →  15kg × 8  →  10kg × 6
+```
+
+- 前 2 段必填，第 3 段可选（整段留空就只算两段）
+- 休息是整组一份
+- 训练总量按**每段自己的次数**累加（上面这组 = 380kg）
+
+### 组间休息计时器
+
+每组下面有一个计时器，换掉了原来的「休息 (秒)」输入框：
+
+- 空闲时显示这一组计划的休息时长，可以直接改，也可以 −/+15 秒
+- 点 ▶ 开始倒计时；计时中可暂停 / 继续、+15 秒、取消
+- 到点会响一声并震动（iOS 不支持震动），界面变成「休息结束」，可以同样时长再来一轮
+- 点「完成」会自动开始这一组的休息计时（前提是设过时长）
+- 计时状态存在 `localStorage` 并记录**结束时间戳**，所以切组、折叠动作、切后台、刷新页面都不会走偏
+- 「训练中」卡片顶部有一条常驻计时条，切到别的动作时也看得见
+
+### 统计口径
+
+| 指标           | 口径                                                         |
+| -------------- | ------------------------------------------------------------ |
+| 训练天数       | 按日期去重——同一天练几次都算 1 天                            |
+| 训练总量       | Σ(重量 × 次数)，递减组按各段自己的次数；统一换算成 kg        |
+| 各部位训练次数 | 按「训练」计：同一次训练里同一部位只算 1 次                  |
+| 各动作训练次数 | 同上，按动作名去重；展示时按部位分组                         |
+| 动作重量趋势   | 每次训练中该动作的**最大重量**；同名动作跨部位合并成一条趋势 |
+| 进行中的训练   | **不计入**统计，只在页面上提示还有几次没完成                 |
+
+「一周」从周一开始算；「近 30 天」含今天。
+
+---
+
+## 动作示范图
+
+动作卡片和动作选择器里的示范图来自开源数据集
+[hasaneyldrm/exercises-dataset](https://github.com/hasaneyldrm/exercises-dataset)：
+
+- 每个动作一张 180×180 的静止图（`<ref>.jpg`）和一份循环动画（`<ref>.gif`）
+- 目前导入了 App 里 52 个动作对应的 51 个动作（「飞鸟递减组」和「哑铃飞鸟」共用一张），共 102 个文件、约 5.3MB
+- 文件名就是 `shared/defaults/exercises.json` 里每个动作的 `ref`
+- 选择器里用 48px 静止图（懒加载），展开动作卡片时才加载动图
+
+> **授权**：素材版权归 [Gym visual](https://gymvisual.com/)，随数据集授权使用，署名必须保留。
+> App 里显示示范图的地方都带了一行 `© Gym visual`，详见
+> `frontend/public/exercises/ATTRIBUTION.md`。要用于印刷、宣传或更高分辨率场景，需自行取得授权。
+
+**换一张图**：把 `shared/defaults/exercises.json` 里对应动作的 `ref` 改成数据集里的另一个 id，
+把新的 `<ref>.jpg` / `.gif` 放进 `frontend/public/exercises/`，删掉不再被引用的旧文件即可
+（字段对齐会在下次打开时把新 `ref` 同步到已安装的设备）。
+
+---
+
+## 测试
 
 ```bash
-npm run dev:host
+npm test          # 后端冒烟 + 前端单元测试（统计 71 项、备份 51 项）
+npm run e2e       # 9 条端到端流程，共 357 项断言
 ```
 
-Vite 会把可用的局域网地址打印出来，例如 `http://192.168.50.235:5173`，手机连同一个
-Wi-Fi 后直接访问该地址即可。因为前端走的是 Vite 代理（`/api` → 本机 3001），
-浏览器只访问 5173 一个端口，所以 **不需要** 改 `CORS_ORIGIN`。
+端到端不是模拟：它会真的拉起 Edge/Chrome，点按钮、填输入框、刷新页面，再检查界面和 IndexedDB。
 
-注意这只是**开发期的临时手段**，电脑必须开着；日常使用请走 GitHub Pages。
+| 流程               | 覆盖                                           |
+| ------------------ | ---------------------------------------------- |
+| `workout-flow`     | 开始训练、选动作、逐组录入、单位切换、刷新不丢 |
+| `rest-timer-flow`  | 开始/暂停/继续/+15/到点/换动作仍在/刷新仍在    |
+| `drop-set-flow`    | 递减组三段各自的重量与次数                     |
+| `supplements-flow` | 补剂记录、单位、按日期筛选                     |
+| `history-flow`     | 按天合并、按场次展示、编辑、补记、删除         |
+| `stats-flow`       | 训练天数、总量、部位/动作次数、趋势切换        |
+| `backup-flow`      | 导出、导入合并、校验失败不写入                 |
+| `viewport-flow`    | 320 / 375 / 390 / 414 / 768 五档宽度           |
+| `pwa-flow`         | 子路径构建、manifest、service worker、断网刷新 |
 
----
-
-## 十、数据导入导出
-
-因为走的是本地优先架构，**导出 / 导入就是唯一的数据备份手段**（见 ADR 0001），
-所以 Phase 9 把它做完了，入口在「我的 → 数据备份」，卡片的右上角会显示本机现有的
-「几次训练 · 几组 · 几种补剂」。
-
-### 导出 JSON（完整备份，主要路径）
-
-- 文件名 `fitlog-backup-YYYY-MM-DD.json`，一份备份 = 一个文件
-- 内容：部位、动作、补剂、补剂记录，以及每次训练（**训练 → 动作 → 组** 三层嵌套）
-- 文件顶部有 `format: "fitlog-backup"` 与 `version`，导入时先认这两个字段，
-  避免把随便一个 JSON 当成备份
-- 用途：定期备份、换手机 / 换浏览器时迁移
-
-### 导出 CSV（训练组明细，便于分析）
-
-- 文件名 `fitlog-sets-YYYY-MM-DD.csv`，**一行 = 一组**
-- 列：训练日期 / 开始时间 / 状态 / 部位 / 动作 / 组号 / 重量 / 单位 / 次数 /
-  休息(秒) / 本组训练量(kg) / 组备注 / 动作备注 / 训练备注
-- 重量额外给了一列换算成 kg 的「本组训练量(kg)」，所以同一次训练里混着 kg / lb
-  也能直接按动作透视
-- 带 UTF-8 BOM + CRLF，Excel 打开中文不乱码
-
-CSV **不能**导回来 —— 它是给表格软件看的，信息有损（比如动作备注会重复在每一行）。
-
-### 导入 JSON（合并，不覆盖）
-
-1. **校验格式与结构**：非法 JSON、不是 FitLog 备份、版本比 App 新、字段类型不对、
-   日期不存在（例如 2 月 30 日）……都会给出**精确到字段路径**的中文提示，
-   例如 `data.workouts[0].exercises[0].sets[0].weight 必须是数字`
-2. 校验通过才写库，而且**七张表在同一个事务里写**；校验失败时不会写入任何数据
-3. 去重后再合并：
-   - 先按 `id`：本机已经有了 → 跳过
-   - 再按业务键：部位 / 动作 / 补剂按**名字**，训练按「日期 + 开始时间」，
-     补剂记录按「补剂 + 日期 + 用量 + 单位 + 时间」
-4. 被跳过的实体，会让引用它的地方改指向本机已有的那条 —— 所以从另一台设备导进来
-   不会出现两个「胸」，也不会多出一个「杠铃卧推」
-
-导入完成后会显示「已导入 N 条记录」+「跳过重复：M 条」；有需要提醒的情况
-（引用的动作 / 补剂在本机不存在、导入的数据里包含进行中的训练）会一并列出来。
-因为导入是合并 + 幂等，**同一份文件重复导入是安全的**。
+> `e2e` 需要先 `npm run dev`（它会连 `localhost:5173`，并且依赖后端的 `/api/health`）。
+> `e2e:pwa` 例外，它自己构建并起 `vite preview`。
 
 ---
 
-## 十一、部署到 GitHub Pages（PWA 上线）
+## 部署到 GitHub Pages
 
 部署之后：手机浏览器打开站点 → 添加到主屏幕 → 从图标启动是全屏 App，
-**电脑不需要开机**，健身房没信号也能记录（数据在手机本地）。
+**电脑不需要开机**，健身房没信号也能记录。
 
-> 本仓库配置的是项目站，地址形如 `https://<用户名>.github.io/<仓库名>/`。
-> 换成仓库名 `workoutapp` 就是 `https://<用户名>.github.io/workoutapp/`。
+站点地址形如 `https://conqsan.github.io/workoutapp/`。
 
-### 一次性设置（约 3 分钟）
+### 一次性设置
 
-**1. 在 GitHub 上建一个空仓库**，名字 `workoutapp`，**公开**，
-并且**不要勾选** Add a README / .gitignore / license（勾了会和本地首次推送冲突）。
+1. 在 GitHub 建一个空仓库（不要勾 README / .gitignore / license），推到 `main`
+2. 仓库 → **Settings** → **Pages** → **Build and deployment** → **Source** 选 **GitHub Actions**
 
-**2. 把本地代码推上去。** 在 PowerShell 里粘这一行：
+> 这一步必须手动做。Actions 自带的 `GITHUB_TOKEN` 没有开启 Pages 的权限，
+> 工作流里加 `enablement: true` 会直接报 `Resource not accessible by integration`。
 
-```powershell
-powershell -ExecutionPolicy Bypass -File D:\workout\tools\push-to-github.ps1
-```
+3. 等 Actions 变绿（约 1 分钟）
 
-脚本会自己去找 `git.exe`（如果你的 PowerShell 里 `git` 不在 PATH 上，它照样能工作）、
-统一一次代码风格、问你要 GitHub 用户名和提交邮箱，然后提交 + 关联远程仓库 + 推送，
-最后把接下来要点的两个网址打印出来。提交身份用 `git -c` 临时传入，**不会改你机器的全局 git 配置**。
-
-> 如果机器上根本没装 Git，脚本会提示两条路：装 Git for Windows，或者改用图形界面的
-> GitHub Desktop（Add local repository → Commit → Publish repository，同样能完成）。
-
-想手动来也可以，等价于这几条：
-
-```bash
-git add -A
-git -c user.name="你的名字" -c user.email="你的邮箱" commit -m "FitLog: Phase 1-8"
-git remote add origin https://github.com/<你的用户名>/workoutapp.git
-git push -u origin main
-```
-
-**3. 打开 Pages（必须手动做一次，3 次点击）。**
-
-仓库 → **Settings** → 左侧 **Pages** → **Build and deployment** →
-**Source** 下拉框选 **GitHub Actions**。
-
-> 这一步**不能省**。通过 API 自动开启 Pages 需要仓库管理员权限，而 Actions 自带的
-> `GITHUB_TOKEN` 没有这个权限 —— 工作流里如果加 `enablement: true`，会直接报
-> `Create Pages site failed. Error: Resource not accessible by integration` 并中断，
-> 所以本仓库刻意没有加它。
->
-> 如果之前已经跑失败过一次：设好 Source 之后，去 Actions 点进那次失败运行，右上角
-> **Re-run all jobs** 重跑一次即可（不用重新提交代码）。
-
-**4. 等 Actions 变绿（大约 1 分钟）。** 成功之后站点就在
-<https://conqsan.github.io/workoutapp/>。
-
-### 之后每次更新
-
-```bash
-git add -A
-git commit -m "改了什么"
-git push
-```
-
-推上去就会自动重新构建部署，不需要手动做什么。
-
-### 手机上装成 App
-
-- **Android / Chrome**：打开站点 → 菜单 → 「安装应用」或「添加到主屏幕」
-- **iOS / Safari**：打开站点 → 分享 → 「添加到主屏幕」
-
-装好之后从图标启动是全屏 standalone，没有浏览器地址栏。
-第一次打开过一次之后，**断网也能用**。
-
-### 部署相关的三个坑（都已经在代码里处理好了）
-
-- **子路径导致静态资源全部 404**：构建时注入 `VITE_BASE_PATH=/<仓库名>/`，由 Actions 自动拼上仓库名
-- **子路径导致路由全部匹配不上**：`BrowserRouter` 用 `import.meta.env.BASE_URL` 作为 `basename`
-- **深链接刷新返回 404**（Pages 不支持 SPA 回退）：构建时额外生成 `404.html`，内容与 `index.html` 一致
+之后每次 `git push` 都会自动重新构建部署。
 
 ### 本地先验证一遍
 
-不想推上去才发现问题的话，本地就能完整模拟生产环境：
-
 ```bash
 npm run e2e:pwa --workspace frontend
 ```
 
-它会用 `/workoutapp/` 这个子路径真实构建、起 `vite preview`，然后验证
-manifest、图标、service worker 注册、**断网刷新后 App 与数据都还在**、深链接等 26 项。
+它会用 `/<仓库名>/` 这个子路径真实构建、起 `vite preview`，验证 manifest、图标、
+service worker 注册、**断网刷新后 App 与数据都还在**、深链接等。
 
-### 关于后端
+### 部署相关的三个坑（代码里都处理好了）
 
-部署到 Pages 的只有前端。后端（Fastify + Prisma + SQLite）仍然是电脑上的备份/分析库，
-没有做实时同步 —— 手机上的数据本来就存在本地，离线可用，所以不依赖后端；
-备份与迁移走「我的 → 导出 / 导入 JSON」。
+- **子路径导致静态资源 404**：构建时注入 `VITE_BASE_PATH=/<仓库名>/`
+- **子路径导致路由匹配不上**：`BrowserRouter` 用 `import.meta.env.BASE_URL` 当 `basename`
+- **深链接刷新 404**（Pages 不支持 SPA 回退）：构建时额外生成一份 `404.html`
 
-## 十二、常见问题
+> 部署到 Pages 的只有前端。后端是电脑上的备份/分析库，没有实时同步——
+> 迁移数据走「我的 → 导出 / 导入 JSON」。
+
+---
+
+## 常见问题
+
+**Q：数据存在哪？换浏览器会丢吗？**
+
+在浏览器的 IndexedDB 里。同一个浏览器刷新、重开都不会丢；**清站点数据、换浏览器、换设备会丢**。
+所以「我的 → 导出 JSON」是唯一可靠的备份手段。
+
+**Q：换手机怎么搬数据？**
+
+旧手机导出 JSON → 传给新手机 → 新手机打开同一个站点导入。导入是合并，重复导入同一份不会产生重复记录。
+
+**Q：导出的 CSV 在 Excel 里中文乱码？**
+
+文件带 UTF-8 BOM，双击打开正常。如果还是乱码，多半是编辑器按 GBK 打开了，手动选 UTF-8 即可。
+
+**Q：为什么删不掉某个动作 / 补剂，一直返回 409？**
+
+故意的。它已经被训练记录或补剂记录引用，删掉会连带丢历史。想清理可以改名继续用，
+或者先删掉相关记录。
 
 **Q：`npm run dev` 提示 5173 端口被占用？**
 
-Vite 会自动顺延到 5174/5175。也可以先清掉残留进程：
+Vite 会自动顺延到 5174。想清掉残留进程：
 
-```bash
+```powershell
 netstat -ano | findstr :5173     # 找到 PID
 taskkill /F /PID <PID>
 ```
 
 **Q：Windows 上访问 `/workout` 报 `Failed to resolve entry for package "D:\workout"`？**
 
-这是 Vite 4 在 Windows 上的一个坑：它会把「没有扩展名的根相对 URL」按
-**当前盘符根目录**去解析，于是 `/workout` 被解析成 `D:\workout`。恰巧本项目目录就叫
-`D:\workout`，所以会直接 500。项目已经在 `frontend/vite.config.ts` 里用一个
-`fitlog:spa-navigation-fallback` 插件修好了：在 Vite 内部中间件之前，把浏览器导航请求
-改写到 `/index.html`，语义与 Vite 自带的 SPA 回退一致，同时不影响 `/api` 代理、
-模块请求、HMR 和静态资源。
+Vite 4 会把「没有扩展名的根相对 URL」按当前盘符根目录解析，`/workout` 正好被解析成 `D:\workout`。
+`frontend/vite.config.ts` 里的 `fitlog:spa-navigation-fallback` 插件已经把浏览器导航请求改写到
+`/index.html`，修掉了这个问题。
 
-**Q：`/api/health` 里 `database.initialized` 是 `false`，是不是出问题了？**
+**Q：`npm run db:migrate` 报 `Schema engine error` 但没有细节？**
 
-说明 Prisma Client 还没生成、或者数据库连不上。
-
-```bash
-npm run db:migrate    # 建表
-npm run db:seed       # 写默认数据
-```
-
-正常状态下它应该是 `true`，`status` 是 `ok`。
-
-**Q：为什么删不掉某个动作或补剂，一直返回 409？**
-
-这是**故意的**。如果这个动作已经被训练记录引用、或这个补剂已经有过使用记录，删除会连带
-丢掉历史数据。FitLog 的原则是数据可靠性优先，所以接口会拒绝并告诉你被引用了多少次。
-
-想清理的话有两个办法：把动作**改名**继续用，或者先删掉相关的训练记录再删。
-
-**Q：`npm run db:migrate` 报 `Schema engine error:` 而且没有任何细节？**
-
-已知的诱因是 **`TEMP` / `TMP` 环境变量指向了一个异常目录**。Prisma 的 schema engine 需要
-一个正常可用的系统临时目录来建 shadow database。把 `TEMP`、`TMP` 改回系统默认值再执行
-即可（不要手动把它们指到项目目录里）。
+多半是 `TEMP` / `TMP` 指向了异常目录。Prisma 需要正常的系统临时目录来建 shadow database，
+改回系统默认值再执行。
 
 **Q：`npm run e2e` 报「Failed to launch the browser process」？**
 
-Windows 上 `msedge.exe` 启动后会立刻把活交给子进程然后自己退出（exit code 0），
-Puppeteer 的 `launch()` 会因此判定失败。项目里已经改成「自己拉起浏览器 + 用 CDP 连上去」，
-正常情况下不会再遇到。如果仍然失败，检查 `frontend/e2e/workout-flow.mjs` 里的
-`BROWSER_CANDIDATES` 是否包含你机器上的浏览器路径。
+Windows 上 `msedge.exe` 会立刻把活交给子进程然后退出，Puppeteer 的 `launch()` 会误判失败。
+项目里已经改成「自己拉起浏览器 + 用 CDP 连上去」。仍然失败的话，检查
+`frontend/e2e/harness.mjs` 的 `BROWSER_CANDIDATES` 里有没有你机器上的浏览器路径。
 
-**Q：首页为什么没有「开始训练」按钮？**
+**Q：为什么「双杠臂屈伸」在趋势里只有一条？**
 
-因为底部导航已经有「训练」了，再放一个大按钮是重复动作。首页那张卡只回答一个问题
-——「今天练了没有、练了什么」，想开始记录点底部「训练」即可。
-
-**Q：练完再进「训练」页，为什么不是显示「今天还没有训练记录」？**
-
-练过就会如实显示。这一屏会查今天已完成的训练：练过就显示「今天已经练过了」+ 部位 /
-动作数 / 组数 / 总量，按钮也变成「再练一次」（想一天两练、或补记别的日期都可以）。
-
-**Q：训练记录存在哪里？换浏览器会丢吗？**
-
-存在浏览器的 IndexedDB 里，所以**换浏览器或清空站点数据会丢**。这是本地优先架构的代价，
-备份手段是「我的 → 导出 JSON」。同一个浏览器里刷新、关掉重开都不会丢。
-
-**Q：换手机了，怎么把数据搬过去？**
-
-旧手机「我的 → 导出 JSON」拿到 `fitlog-backup-YYYY-MM-DD.json`，传给新手机，
-新手机打开同一个站点 →「我的 → 导入 JSON」选这个文件即可。导入是**合并**：只补本机
-没有的，重复的自动跳过，新手机上已有的记录不会被覆盖，所以可以放心重复导入同一份文件。
-
-**Q：导入报「这个文件不是有效的 FitLog 备份」怎么办？**
-
-提示里会列出具体哪一项不对，例如 `data.workouts[0].weight 必须是数字`。最常见的三个原因：
-选错了文件（把 CSV 当 JSON 导入）、文件被手工改过、备份来自更新版本的 App。
-导入失败时**不会写入任何数据**，本机数据保持原样，可以放心重试。
-
-**Q：导出的 CSV 用 Excel 打开怎么中文乱码？**
-
-文件本身带 UTF-8 BOM，正常双击不会乱码。如果还是乱的，多半是编辑器按 GBK 打开了 ——
-在打开方式里选「UTF-8」或者用记事本 / VS Code 打开即可。
-
-**Q：蛋白粉想按「勺」记，可以吗？**
-
-可以。默认数据里 **增肌粉 / 蛋白粉** 的可选单位是 `g` 和 `勺`，记录时点一下「勺」再填数字，
-存下来就是 `1勺`（不会硬换算成克）；肌酸只有 `g`。单位那一格本身是自由输入，所以
-自定义补剂想写「粒」「片」「ml」也没问题。详见「补剂单位（g / 勺）」。
-
-**Q：历史记录记错了能删掉吗？**
-
-能。历史列表每一行右侧的「删」、以及详情页底部的「删除这次训练」都可以删，**都要点两次**
-（第二次是确认），避免误触。删除只影响这一次训练（含它的动作与组），**同一天的补剂记录会保留**。
-删掉就找不回来了，想留底就先「我的 → 导出 JSON」。
-
-**Q：历史记录记错了能改吗？**
-
-能，而且改比删常用，所以放在详情页：点进去 → 右上角「修改」改**训练日期**和**训练备注**；
-每一组右侧的「改」改**重量 / 次数 / 休息**（保存后训练总量自动重算），「删」删掉这一组
-（剩下的组号自动压成 1、2、3…）。注意：改的是训练本身，**当天的补剂记录不会跟着换日期** ——
-补剂是按天记的，和训练是两件独立的事。
-
-**Q：递减组怎么记？**
-
-选「肩 / 飞鸟递减组」，一组会出现 3 段的重量与次数框：**每段各自记自己的重量和次数**
-（20kg×10 → 15kg×8 → 10kg×6），前 2 段必填、第 3 段可选（整段留空就只算两段）；
-休息是整组一份。训练总量按每段自己的次数累加 = 380kg，历史、统计、导出的 CSV 同一口径。
-详见「递减组（一组多个重量段）」。
-
-**Q：为什么「双杠臂屈伸」在趋势里只有一条，我明明在胸和三头都练过？**
-
-因为它就是同一个动作。默认数据里「双杠臂屈伸」在胸和三头下各有一条（数据库里的 id 不同），
-但趋势、最大重量这类「看动作进步」的统计按**动作名**合并成一条 —— 分成两条反而看不出趋势。
-只有「各动作训练次数」是按部位分组展示的，因为那里关心的是「哪个部位练了多少」。
-
-**Q：为什么 `+ 添加一组` 会自动填上上一组的重量和次数？**
-
-因为大部分人下一组就是照抄上一组，一键添加再改数字比每格都填快得多。
-需求里的「复制上一组」和它是同一个操作（在末尾追加时），所以合并成了一个按钮，
-避免两个按钮做同一件事。
-
-**Q：后端启动报「环境变量校验失败」？**
-
-检查 `backend/.env` 是否存在、`DATABASE_URL` 是否配置。可以直接复制模板：
-
-```bash
-copy backend\.env.example backend\.env
-```
-
-**Q：Windows 上 `npm install` 报 `EPERM: operation not permitted, lstat 'C:\Users\...'`？**
-
-这是受限环境（沙箱 / 权限策略）不允许访问用户临时目录导致的，Prisma 的 postinstall
-需要读取临时目录。换一个普通终端执行，或先把 `TEMP`/`TMP` 指向一个可写目录再安装。
-（注意：这个临时目录只用于安装；执行 `db:migrate` 时要用回系统默认的 `TEMP`。）
+因为它就是同一个动作。默认数据里它在「胸」和「三头」下各有一条（id 不同），
+但「看动作进步」的统计按**动作名**合并——分成两条反而看不出趋势。
+「各动作训练次数」则按部位分组展示，因为那里关心的是「哪个部位练了多少」。
 
 ---
 
-## 十三、开发约束
+## 开发约定
 
-这些约束在整个项目中长期有效：
-
-- 不一次性重写项目，不擅自删除已完成功能，不随意更换技术栈或数据库
-- 运行时数据（训练部位、动作、补剂）必须来自数据层，不允许写死在页面组件里。
-  默认数据在 `shared/defaults/*.json` 定义一次，用户自己的数据存在本地库
-- 每一组训练单独一行保存，**不允许**把 `80kg × 10 × 3组` 塞进一个字段
-- 不绕过数据库、不把业务逻辑堆在页面组件里、不把代码写进单个文件
-- 不用 `any` 糊弄类型，不忽略 TypeScript / ESLint 报错，不忽略移动端适配与错误处理
-- 每个 Phase 结束必须实际运行测试，没有跑过就不说「通过」
-
-走本地优先架构后新增的约束：
-
-- **默认数据只有一份定义**（`shared/defaults/*.json`），后端 seed 和前端都读它，
-  不允许两边各写一套
-- 所有 Prisma 查询都写在 `repositories/`，service 不直接持有 `PrismaClient` 细节
-- 删除动作 / 补剂前必须检查引用，**不允许**用级联删除静默抹掉历史数据
-- 前端 UI 只能通过 `src/data` 的 `repository` 读写数据，**不允许**在组件里直接使用
-  IndexedDB 或 fetch；Phase 8 加 HTTP 实现 / 同步时页面代码不跟着改
-- 训练的写操作一律返回「更新后的整次训练」，前端直接用返回值重绘，避免自己拼状态
-- **重量单位不能混着算**：每组记下自己的单位，任何汇总（总量、趋势、PR）都必须先换算成
-  kg 再计算，不允许把 kg 和 lb 直接相加
-- **界面不展示技术信息**：技术栈、当前阶段、版本号、实现细节都属于 README 和仓库，
-  不放进 App 界面。「我的」页只放用户真正用得上的东西（数据备份 / 恢复 + 快捷入口）
+- 运行时数据（部位、动作、补剂）必须来自数据层，**不允许写死在页面组件里**
+- 默认数据只改 `shared/defaults/*.json`，前后端同源
+- **每一组训练单独一行保存**，不合并成「重量 × 次数 × 组数」
+- 业务逻辑放数据层 / utils，页面组件只负责渲染和交互
+- 不绕过数据库，不把逻辑堆进单个文件
+- 新增持久化字段时：改类型 → 补 IndexedDB 迁移 → 补默认数据同步 → 补测试
